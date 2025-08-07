@@ -1,0 +1,81 @@
+// DAX Templates for Platform Projections Model
+// Generated from Excel Analysis
+
+// MEASURES
+==================================================
+
+
+// Interpolation Measure Template
+InterpolatedValue = 
+VAR SelectedMonth = SELECTEDVALUE(DateTable[Month])
+VAR SelectedInputType = SELECTEDVALUE(Parameters[InputType])
+VAR SelectedScenario = SELECTEDVALUE(Scenarios[ScenarioName])
+
+VAR BaseValue = 
+    SWITCH(
+        TRUE(),
+        SelectedMonth = 1, LOOKUPVALUE(Parameters[Value], Parameters[InputType], SelectedInputType, Parameters[Month], 1),
+        SelectedMonth <= 6, 
+            VAR M1Value = LOOKUPVALUE(Parameters[Value], Parameters[InputType], SelectedInputType, Parameters[Month], 1)
+            VAR M6Value = LOOKUPVALUE(Parameters[Value], Parameters[InputType], SelectedInputType, Parameters[Month], 6)
+            RETURN M1Value + (M6Value - M1Value) * (SelectedMonth - 1) / 5,
+        SelectedMonth <= 12,
+            VAR M6Value = LOOKUPVALUE(Parameters[Value], Parameters[InputType], SelectedInputType, Parameters[Month], 6)
+            VAR M12Value = LOOKUPVALUE(Parameters[Value], Parameters[InputType], SelectedInputType, Parameters[Month], 12)
+            RETURN M6Value + (M12Value - M6Value) * (SelectedMonth - 6) / 6,
+        SelectedMonth <= 24,
+            VAR M12Value = LOOKUPVALUE(Parameters[Value], Parameters[InputType], SelectedInputType, Parameters[Month], 12)
+            VAR M24Value = LOOKUPVALUE(Parameters[Value], Parameters[InputType], SelectedInputType, Parameters[Month], 24)
+            RETURN M12Value + (M24Value - M12Value) * (SelectedMonth - 12) / 12,
+        SelectedMonth <= 36,
+            VAR M24Value = LOOKUPVALUE(Parameters[Value], Parameters[InputType], SelectedInputType, Parameters[Month], 24)
+            VAR M36Value = LOOKUPVALUE(Parameters[Value], Parameters[InputType], SelectedInputType, Parameters[Month], 36)
+            RETURN M24Value + (M36Value - M24Value) * (SelectedMonth - 24) / 12,
+        // Beyond 36 months, use M36 value with optional growth
+        LOOKUPVALUE(Parameters[Value], Parameters[InputType], SelectedInputType, Parameters[Month], 36)
+    )
+
+VAR ScenarioMultiplier = 
+    SWITCH(
+        SelectedScenario,
+        "Base", 1.0,
+        "High_10", 1.1,
+        "Low_10", 0.9,
+        "High_25", 1.25,
+        "Low_25", 0.75,
+        "Custom", SELECTEDVALUE(ScenarioParameters[CustomMultiplier]),
+        1.0
+    )
+
+RETURN BaseValue * ScenarioMultiplier
+
+
+
+// Account Calculation Measure
+TotalAccounts = 
+VAR CurrentMonth = SELECTEDVALUE(DateTable[Month])
+VAR SelectedScenario = SELECTEDVALUE(Scenarios[ScenarioName])
+
+VAR BaseAccounts = 
+    SWITCH(
+        TRUE(),
+        CurrentMonth <= 1, [InterpolatedValue for Accounts at Month 1],
+        CurrentMonth <= 6, [InterpolatedValue for Accounts at Month 6], 
+        CurrentMonth <= 12, [InterpolatedValue for Accounts at Month 12],
+        CurrentMonth <= 24, [InterpolatedValue for Accounts at Month 24],
+        [InterpolatedValue for Accounts at Month 36]
+    )
+
+RETURN BaseAccounts
+
+
+
+// Transaction Volume Calculations
+TransactionVolume = 
+VAR Accounts = [TotalAccounts]
+VAR TransactionRate = [InterpolatedValue] // Assuming this gets the appropriate rate
+VAR UsageRate = [InterpolatedValue] // Assuming this gets the usage rate
+
+RETURN Accounts * TransactionRate * UsageRate
+
+
