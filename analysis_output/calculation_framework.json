@@ -1,0 +1,466 @@
+{
+  "base_inputs": {
+    "ACHinPerActive": {
+      "key_months": [
+        "1",
+        "6",
+        "12",
+        "24",
+        "36"
+      ],
+      "interpolation_method": "linear",
+      "base_values": {
+        "1": null,
+        "6": null,
+        "12": null,
+        "24": null,
+        "36": null
+      }
+    },
+    "ACHinRate": {
+      "key_months": [
+        "1",
+        "6",
+        "12",
+        "24",
+        "36"
+      ],
+      "interpolation_method": "linear",
+      "base_values": {
+        "1": null,
+        "6": null,
+        "12": null,
+        "24": null,
+        "36": null
+      }
+    },
+    "ACHoutPerActive": {
+      "key_months": [
+        "1",
+        "6",
+        "12",
+        "24",
+        "36"
+      ],
+      "interpolation_method": "linear",
+      "base_values": {
+        "1": null,
+        "6": null,
+        "12": null,
+        "24": null,
+        "36": null
+      }
+    },
+    "ACHoutRate": {
+      "key_months": [
+        "1",
+        "6",
+        "12",
+        "24",
+        "36"
+      ],
+      "interpolation_method": "linear",
+      "base_values": {
+        "1": null,
+        "6": null,
+        "12": null,
+        "24": null,
+        "36": null
+      }
+    },
+    "ACHoutShare": {
+      "key_months": [
+        "1",
+        "6",
+        "12",
+        "24",
+        "36"
+      ],
+      "interpolation_method": "linear",
+      "base_values": {
+        "1": null,
+        "6": null,
+        "12": null,
+        "24": null,
+        "36": null
+      }
+    },
+    "Accounts": {
+      "key_months": [
+        "1",
+        "6",
+        "12",
+        "24",
+        "36"
+      ],
+      "interpolation_method": "linear",
+      "base_values": {
+        "1": null,
+        "6": null,
+        "12": null,
+        "24": null,
+        "36": null
+      }
+    },
+    "ActiveShare": {
+      "key_months": [
+        "1",
+        "6",
+        "12",
+        "24",
+        "36"
+      ],
+      "interpolation_method": "linear",
+      "base_values": {
+        "1": null,
+        "6": null,
+        "12": null,
+        "24": null,
+        "36": null
+      }
+    },
+    "CheckingShare": {
+      "key_months": [
+        "1",
+        "6",
+        "12",
+        "24",
+        "36"
+      ],
+      "interpolation_method": "linear",
+      "base_values": {
+        "1": null,
+        "6": null,
+        "12": null,
+        "24": null,
+        "36": null
+      }
+    },
+    "CheckingUsageRate": {
+      "key_months": [
+        "1",
+        "6",
+        "12",
+        "24",
+        "36"
+      ],
+      "interpolation_method": "linear",
+      "base_values": {
+        "1": null,
+        "6": null,
+        "12": null,
+        "24": null,
+        "36": null
+      }
+    },
+    "DebitCardTransactionRate": {
+      "key_months": [
+        "1",
+        "6",
+        "12",
+        "24",
+        "36"
+      ],
+      "interpolation_method": "linear",
+      "base_values": {
+        "1": null,
+        "6": null,
+        "12": null,
+        "24": null,
+        "36": null
+      }
+    },
+    "DebitCardTransactionShare": {
+      "key_months": [
+        "1",
+        "6",
+        "12",
+        "24",
+        "36"
+      ],
+      "interpolation_method": "linear",
+      "base_values": {
+        "1": null,
+        "6": null,
+        "12": null,
+        "24": null,
+        "36": null
+      }
+    },
+    "DebitCardTransactionsPerActive": {
+      "key_months": [
+        "1",
+        "6",
+        "12",
+        "24",
+        "36"
+      ],
+      "interpolation_method": "linear",
+      "base_values": {
+        "1": null,
+        "6": null,
+        "12": null,
+        "24": null,
+        "36": null
+      }
+    },
+    "GrowthRateM37Plus": {
+      "key_months": [
+        "37"
+      ],
+      "interpolation_method": "linear",
+      "base_values": {
+        "37": null
+      }
+    },
+    "RTPinPerActive": {
+      "key_months": [
+        "1",
+        "6",
+        "12",
+        "24",
+        "36"
+      ],
+      "interpolation_method": "linear",
+      "base_values": {
+        "1": null,
+        "6": null,
+        "12": null,
+        "24": null,
+        "36": null
+      }
+    },
+    "RTPinRate": {
+      "key_months": [
+        "1",
+        "6",
+        "12",
+        "24",
+        "36"
+      ],
+      "interpolation_method": "linear",
+      "base_values": {
+        "1": null,
+        "6": null,
+        "12": null,
+        "24": null,
+        "36": null
+      }
+    },
+    "RTPoutPerActive": {
+      "key_months": [
+        "1",
+        "6",
+        "12",
+        "24",
+        "36"
+      ],
+      "interpolation_method": "linear",
+      "base_values": {
+        "1": null,
+        "6": null,
+        "12": null,
+        "24": null,
+        "36": null
+      }
+    },
+    "RTPoutRate": {
+      "key_months": [
+        "1",
+        "6",
+        "12",
+        "24",
+        "36"
+      ],
+      "interpolation_method": "linear",
+      "base_values": {
+        "1": null,
+        "6": null,
+        "12": null,
+        "24": null,
+        "36": null
+      }
+    },
+    "RTPoutShare": {
+      "key_months": [
+        "1",
+        "6",
+        "12",
+        "24",
+        "36"
+      ],
+      "interpolation_method": "linear",
+      "base_values": {
+        "1": null,
+        "6": null,
+        "12": null,
+        "24": null,
+        "36": null
+      }
+    },
+    "SavingShare": {
+      "key_months": [
+        "1",
+        "6",
+        "12",
+        "24",
+        "36"
+      ],
+      "interpolation_method": "linear",
+      "base_values": {
+        "1": null,
+        "6": null,
+        "12": null,
+        "24": null,
+        "36": null
+      }
+    },
+    "SavingsTransferRate": {
+      "key_months": [
+        "1",
+        "6",
+        "12",
+        "24",
+        "36"
+      ],
+      "interpolation_method": "linear",
+      "base_values": {
+        "1": null,
+        "6": null,
+        "12": null,
+        "24": null,
+        "36": null
+      }
+    },
+    "SavingsUsageRate": {
+      "key_months": [
+        "1",
+        "6",
+        "12",
+        "24",
+        "36"
+      ],
+      "interpolation_method": "linear",
+      "base_values": {
+        "1": null,
+        "6": null,
+        "12": null,
+        "24": null,
+        "36": null
+      }
+    },
+    "WireInPerActive": {
+      "key_months": [
+        "1",
+        "6",
+        "12",
+        "24",
+        "36"
+      ],
+      "interpolation_method": "linear",
+      "base_values": {
+        "1": null,
+        "6": null,
+        "12": null,
+        "24": null,
+        "36": null
+      }
+    },
+    "WireInRate": {
+      "key_months": [
+        "1",
+        "6",
+        "12",
+        "24",
+        "36"
+      ],
+      "interpolation_method": "linear",
+      "base_values": {
+        "1": null,
+        "6": null,
+        "12": null,
+        "24": null,
+        "36": null
+      }
+    },
+    "WireOutPerActive": {
+      "key_months": [
+        "1",
+        "6",
+        "12",
+        "24",
+        "36"
+      ],
+      "interpolation_method": "linear",
+      "base_values": {
+        "1": null,
+        "6": null,
+        "12": null,
+        "24": null,
+        "36": null
+      }
+    },
+    "WireOutRate": {
+      "key_months": [
+        "1",
+        "6",
+        "12",
+        "24",
+        "36"
+      ],
+      "interpolation_method": "linear",
+      "base_values": {
+        "1": null,
+        "6": null,
+        "12": null,
+        "24": null,
+        "36": null
+      }
+    },
+    "WireOutShare": {
+      "key_months": [
+        "1",
+        "6",
+        "12",
+        "24",
+        "36"
+      ],
+      "interpolation_method": "linear",
+      "base_values": {
+        "1": null,
+        "6": null,
+        "12": null,
+        "24": null,
+        "36": null
+      }
+    }
+  },
+  "interpolation_logic": {},
+  "calculation_formulas": {},
+  "scenario_modifiers": {
+    "Base": {
+      "multiplier": 1.0,
+      "description": "Base case scenario"
+    },
+    "High_10": {
+      "multiplier": 1.1,
+      "description": "+10% scenario"
+    },
+    "Low_10": {
+      "multiplier": 0.9,
+      "description": "-10% scenario"
+    },
+    "High_25": {
+      "multiplier": 1.25,
+      "description": "+25% scenario"
+    },
+    "Low_25": {
+      "multiplier": 0.75,
+      "description": "-25% scenario"
+    },
+    "Custom": {
+      "multiplier": "variable",
+      "description": "Custom adjustable scenario"
+    }
+  }
+}
