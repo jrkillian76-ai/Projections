@@ -1,0 +1,1062 @@
+{
+  "sheets": {
+    "MonthlyInputs": {
+      "shape": [
+        126,
+        3
+      ],
+      "columns": [
+        "InputType",
+        "Month",
+        "Value"
+      ],
+      "sample_data": [
+        {
+          "InputType": "Accounts",
+          "Month": 1,
+          "Value": 1000.0
+        },
+        {
+          "InputType": "Accounts",
+          "Month": 6,
+          "Value": 20000.0
+        },
+        {
+          "InputType": "Accounts",
+          "Month": 12,
+          "Value": 60000.0
+        },
+        {
+          "InputType": "Accounts",
+          "Month": 24,
+          "Value": 120000.0
+        },
+        {
+          "InputType": "Accounts",
+          "Month": 36,
+          "Value": 200000.0
+        },
+        {
+          "InputType": "ACHinPerActive",
+          "Month": 1,
+          "Value": 1.4
+        },
+        {
+          "InputType": "ACHinPerActive",
+          "Month": 6,
+          "Value": 1.4
+        },
+        {
+          "InputType": "ACHinPerActive",
+          "Month": 12,
+          "Value": 2.8
+        },
+        {
+          "InputType": "ACHinPerActive",
+          "Month": 24,
+          "Value": 2.8
+        },
+        {
+          "InputType": "ACHinPerActive",
+          "Month": 36,
+          "Value": 2.8
+        }
+      ]
+    },
+    "GlobalTextVariables": {
+      "shape": [
+        2,
+        2
+      ],
+      "columns": [
+        "InputType",
+        "TextValue"
+      ],
+      "sample_data": [
+        {
+          "InputType": "PartnerFI",
+          "TextValue": "PhnxBank"
+        },
+        {
+          "InputType": "Platform_short",
+          "TextValue": "Phoenix"
+        }
+      ]
+    },
+    "GlobalNumericValues": {
+      "shape": [
+        2,
+        2
+      ],
+      "columns": [
+        "InputType",
+        "Value"
+      ],
+      "sample_data": [
+        {
+          "InputType": "PartnerInterchange",
+          "Value": 0.0006
+        },
+        {
+          "InputType": "PartnerInterest",
+          "Value": 0.0175
+        }
+      ]
+    }
+  },
+  "input_types": [
+    "ACHinPerActive",
+    "ACHinRate",
+    "ACHoutPerActive",
+    "ACHoutRate",
+    "ACHoutShare",
+    "Accounts",
+    "ActiveShare",
+    "CheckingShare",
+    "CheckingUsageRate",
+    "DebitCardTransactionRate",
+    "DebitCardTransactionShare",
+    "DebitCardTransactionsPerActive",
+    "GrowthRateM37Plus",
+    "RTPinPerActive",
+    "RTPinRate",
+    "RTPoutPerActive",
+    "RTPoutRate",
+    "RTPoutShare",
+    "SavingShare",
+    "SavingsTransferRate",
+    "SavingsUsageRate",
+    "WireInPerActive",
+    "WireInRate",
+    "WireOutPerActive",
+    "WireOutRate",
+    "WireOutShare"
+  ],
+  "months": [
+    "1",
+    "6",
+    "12",
+    "24",
+    "36",
+    "37"
+  ],
+  "metrics": {
+    "Accounts": {
+      "count": 5,
+      "months": [
+        "1",
+        "6",
+        "12",
+        "24",
+        "36"
+      ],
+      "value_range": [
+        1000.0,
+        200000.0
+      ],
+      "sample_values": [
+        {
+          "Month": 1,
+          "Value": 1000.0
+        },
+        {
+          "Month": 6,
+          "Value": 20000.0
+        },
+        {
+          "Month": 12,
+          "Value": 60000.0
+        },
+        {
+          "Month": 24,
+          "Value": 120000.0
+        },
+        {
+          "Month": 36,
+          "Value": 200000.0
+        }
+      ]
+    },
+    "ACHinPerActive": {
+      "count": 5,
+      "months": [
+        "1",
+        "6",
+        "12",
+        "24",
+        "36"
+      ],
+      "value_range": [
+        1.4,
+        2.8
+      ],
+      "sample_values": [
+        {
+          "Month": 1,
+          "Value": 1.4
+        },
+        {
+          "Month": 6,
+          "Value": 1.4
+        },
+        {
+          "Month": 12,
+          "Value": 2.8
+        },
+        {
+          "Month": 24,
+          "Value": 2.8
+        },
+        {
+          "Month": 36,
+          "Value": 2.8
+        }
+      ]
+    },
+    "RTPinPerActive": {
+      "count": 5,
+      "months": [
+        "1",
+        "6",
+        "12",
+        "24",
+        "36"
+      ],
+      "value_range": [
+        0.6000000000000001,
+        1.2000000000000002
+      ],
+      "sample_values": [
+        {
+          "Month": 1,
+          "Value": 0.6000000000000001
+        },
+        {
+          "Month": 6,
+          "Value": 0.6000000000000001
+        },
+        {
+          "Month": 12,
+          "Value": 1.2000000000000002
+        },
+        {
+          "Month": 24,
+          "Value": 1.2000000000000002
+        },
+        {
+          "Month": 36,
+          "Value": 1.2000000000000002
+        }
+      ]
+    },
+    "ACHoutPerActive": {
+      "count": 5,
+      "months": [
+        "1",
+        "6",
+        "12",
+        "24",
+        "36"
+      ],
+      "value_range": [
+        0.9799999999999999,
+        1.9599999999999997
+      ],
+      "sample_values": [
+        {
+          "Month": 1,
+          "Value": 0.9799999999999999
+        },
+        {
+          "Month": 6,
+          "Value": 0.9799999999999999
+        },
+        {
+          "Month": 12,
+          "Value": 1.9599999999999997
+        },
+        {
+          "Month": 24,
+          "Value": 1.9599999999999997
+        },
+        {
+          "Month": 36,
+          "Value": 1.9599999999999997
+        }
+      ]
+    },
+    "RTPoutPerActive": {
+      "count": 5,
+      "months": [
+        "1",
+        "6",
+        "12",
+        "24",
+        "36"
+      ],
+      "value_range": [
+        0.42000000000000004,
+        0.8400000000000001
+      ],
+      "sample_values": [
+        {
+          "Month": 1,
+          "Value": 0.42000000000000004
+        },
+        {
+          "Month": 6,
+          "Value": 0.42000000000000004
+        },
+        {
+          "Month": 12,
+          "Value": 0.8400000000000001
+        },
+        {
+          "Month": 24,
+          "Value": 0.8400000000000001
+        },
+        {
+          "Month": 36,
+          "Value": 0.8400000000000001
+        }
+      ]
+    },
+    "ACHinRate": {
+      "count": 5,
+      "months": [
+        "1",
+        "6",
+        "12",
+        "24",
+        "36"
+      ],
+      "value_range": [
+        1500.0,
+        4500.0
+      ],
+      "sample_values": [
+        {
+          "Month": 1,
+          "Value": 1500.0
+        },
+        {
+          "Month": 6,
+          "Value": 3500.0
+        },
+        {
+          "Month": 12,
+          "Value": 4000.0
+        },
+        {
+          "Month": 24,
+          "Value": 4500.0
+        },
+        {
+          "Month": 36,
+          "Value": 4500.0
+        }
+      ]
+    },
+    "RTPinRate": {
+      "count": 5,
+      "months": [
+        "1",
+        "6",
+        "12",
+        "24",
+        "36"
+      ],
+      "value_range": [
+        1500.0,
+        4500.0
+      ],
+      "sample_values": [
+        {
+          "Month": 1,
+          "Value": 1500.0
+        },
+        {
+          "Month": 6,
+          "Value": 3500.0
+        },
+        {
+          "Month": 12,
+          "Value": 4000.0
+        },
+        {
+          "Month": 24,
+          "Value": 4500.0
+        },
+        {
+          "Month": 36,
+          "Value": 4500.0
+        }
+      ]
+    },
+    "ACHoutRate": {
+      "count": 5,
+      "months": [
+        "1",
+        "6",
+        "12",
+        "24",
+        "36"
+      ],
+      "value_range": [
+        200.0,
+        3600.0
+      ],
+      "sample_values": [
+        {
+          "Month": 1,
+          "Value": 200.0
+        },
+        {
+          "Month": 6,
+          "Value": 1750.0
+        },
+        {
+          "Month": 12,
+          "Value": 3200.0
+        },
+        {
+          "Month": 24,
+          "Value": 3600.0
+        },
+        {
+          "Month": 36,
+          "Value": 3600.0
+        }
+      ]
+    },
+    "RTPoutRate": {
+      "count": 5,
+      "months": [
+        "1",
+        "6",
+        "12",
+        "24",
+        "36"
+      ],
+      "value_range": [
+        200.0,
+        3600.0
+      ],
+      "sample_values": [
+        {
+          "Month": 1,
+          "Value": 200.0
+        },
+        {
+          "Month": 6,
+          "Value": 1750.0
+        },
+        {
+          "Month": 12,
+          "Value": 3200.0
+        },
+        {
+          "Month": 24,
+          "Value": 3600.0
+        },
+        {
+          "Month": 36,
+          "Value": 3600.0
+        }
+      ]
+    },
+    "WireInPerActive": {
+      "count": 5,
+      "months": [
+        "1",
+        "6",
+        "12",
+        "24",
+        "36"
+      ],
+      "value_range": [
+        0.001,
+        0.0026666666666666666
+      ],
+      "sample_values": [
+        {
+          "Month": 1,
+          "Value": 0.001
+        },
+        {
+          "Month": 6,
+          "Value": 0.0026
+        },
+        {
+          "Month": 12,
+          "Value": 0.0026666666666666666
+        },
+        {
+          "Month": 24,
+          "Value": 0.0026666666666666666
+        },
+        {
+          "Month": 36,
+          "Value": 0.0025
+        }
+      ]
+    },
+    "WireOutPerActive": {
+      "count": 5,
+      "months": [
+        "1",
+        "6",
+        "12",
+        "24",
+        "36"
+      ],
+      "value_range": [
+        0.001,
+        0.00135
+      ],
+      "sample_values": [
+        {
+          "Month": 1,
+          "Value": 0.001
+        },
+        {
+          "Month": 6,
+          "Value": 0.00135
+        },
+        {
+          "Month": 12,
+          "Value": 0.0013333333333333333
+        },
+        {
+          "Month": 24,
+          "Value": 0.0013333333333333333
+        },
+        {
+          "Month": 36,
+          "Value": 0.0013333333333333333
+        }
+      ]
+    },
+    "WireInRate": {
+      "count": 5,
+      "months": [
+        "1",
+        "6",
+        "12",
+        "24",
+        "36"
+      ],
+      "value_range": [
+        500.0,
+        1700.0
+      ],
+      "sample_values": [
+        {
+          "Month": 1,
+          "Value": 500.0
+        },
+        {
+          "Month": 6,
+          "Value": 1300.0
+        },
+        {
+          "Month": 12,
+          "Value": 1500.0
+        },
+        {
+          "Month": 24,
+          "Value": 1700.0
+        },
+        {
+          "Month": 36,
+          "Value": 1700.0
+        }
+      ]
+    },
+    "WireOutRate": {
+      "count": 5,
+      "months": [
+        "1",
+        "6",
+        "12",
+        "24",
+        "36"
+      ],
+      "value_range": [
+        250.0,
+        600.0
+      ],
+      "sample_values": [
+        {
+          "Month": 1,
+          "Value": 250.0
+        },
+        {
+          "Month": 6,
+          "Value": 400.0
+        },
+        {
+          "Month": 12,
+          "Value": 550.0
+        },
+        {
+          "Month": 24,
+          "Value": 600.0
+        },
+        {
+          "Month": 36,
+          "Value": 600.0
+        }
+      ]
+    },
+    "SavingsUsageRate": {
+      "count": 5,
+      "months": [
+        "1",
+        "6",
+        "12",
+        "24",
+        "36"
+      ],
+      "value_range": [
+        0.9,
+        0.9
+      ],
+      "sample_values": [
+        {
+          "Month": 1,
+          "Value": 0.9
+        },
+        {
+          "Month": 6,
+          "Value": 0.9
+        },
+        {
+          "Month": 12,
+          "Value": 0.9
+        },
+        {
+          "Month": 24,
+          "Value": 0.9
+        },
+        {
+          "Month": 36,
+          "Value": 0.9
+        }
+      ]
+    },
+    "CheckingUsageRate": {
+      "count": 5,
+      "months": [
+        "1",
+        "6",
+        "12",
+        "24",
+        "36"
+      ],
+      "value_range": [
+        0.9,
+        0.9
+      ],
+      "sample_values": [
+        {
+          "Month": 1,
+          "Value": 0.9
+        },
+        {
+          "Month": 6,
+          "Value": 0.9
+        },
+        {
+          "Month": 12,
+          "Value": 0.9
+        },
+        {
+          "Month": 24,
+          "Value": 0.9
+        },
+        {
+          "Month": 36,
+          "Value": 0.9
+        }
+      ]
+    },
+    "SavingsTransferRate": {
+      "count": 5,
+      "months": [
+        "1",
+        "6",
+        "12",
+        "24",
+        "36"
+      ],
+      "value_range": [
+        0.5,
+        0.5
+      ],
+      "sample_values": [
+        {
+          "Month": 1,
+          "Value": 0.5
+        },
+        {
+          "Month": 6,
+          "Value": 0.5
+        },
+        {
+          "Month": 12,
+          "Value": 0.5
+        },
+        {
+          "Month": 24,
+          "Value": 0.5
+        },
+        {
+          "Month": 36,
+          "Value": 0.5
+        }
+      ]
+    },
+    "DebitCardTransactionsPerActive": {
+      "count": 5,
+      "months": [
+        "1",
+        "6",
+        "12",
+        "24",
+        "36"
+      ],
+      "value_range": [
+        4.0,
+        22.0
+      ],
+      "sample_values": [
+        {
+          "Month": 1,
+          "Value": 4.0
+        },
+        {
+          "Month": 6,
+          "Value": 6.0
+        },
+        {
+          "Month": 12,
+          "Value": 12.0
+        },
+        {
+          "Month": 24,
+          "Value": 20.0
+        },
+        {
+          "Month": 36,
+          "Value": 22.0
+        }
+      ]
+    },
+    "DebitCardTransactionRate": {
+      "count": 5,
+      "months": [
+        "1",
+        "6",
+        "12",
+        "24",
+        "36"
+      ],
+      "value_range": [
+        25.0,
+        75.0
+      ],
+      "sample_values": [
+        {
+          "Month": 1,
+          "Value": 25.0
+        },
+        {
+          "Month": 6,
+          "Value": 50.0
+        },
+        {
+          "Month": 12,
+          "Value": 75.0
+        },
+        {
+          "Month": 24,
+          "Value": 75.0
+        },
+        {
+          "Month": 36,
+          "Value": 75.0
+        }
+      ]
+    },
+    "ActiveShare": {
+      "count": 5,
+      "months": [
+        "1",
+        "6",
+        "12",
+        "24",
+        "36"
+      ],
+      "value_range": [
+        1.0,
+        1.0
+      ],
+      "sample_values": [
+        {
+          "Month": 1,
+          "Value": 1.0
+        },
+        {
+          "Month": 6,
+          "Value": 1.0
+        },
+        {
+          "Month": 12,
+          "Value": 1.0
+        },
+        {
+          "Month": 24,
+          "Value": 1.0
+        },
+        {
+          "Month": 36,
+          "Value": 1.0
+        }
+      ]
+    },
+    "CheckingShare": {
+      "count": 5,
+      "months": [
+        "1",
+        "6",
+        "12",
+        "24",
+        "36"
+      ],
+      "value_range": [
+        1.0,
+        1.0
+      ],
+      "sample_values": [
+        {
+          "Month": 1,
+          "Value": 1.0
+        },
+        {
+          "Month": 6,
+          "Value": 1.0
+        },
+        {
+          "Month": 12,
+          "Value": 1.0
+        },
+        {
+          "Month": 24,
+          "Value": 1.0
+        },
+        {
+          "Month": 36,
+          "Value": 1.0
+        }
+      ]
+    },
+    "SavingShare": {
+      "count": 5,
+      "months": [
+        "1",
+        "6",
+        "12",
+        "24",
+        "36"
+      ],
+      "value_range": [
+        0.4,
+        0.8
+      ],
+      "sample_values": [
+        {
+          "Month": 1,
+          "Value": 0.4
+        },
+        {
+          "Month": 6,
+          "Value": 0.4
+        },
+        {
+          "Month": 12,
+          "Value": 0.6
+        },
+        {
+          "Month": 24,
+          "Value": 0.8
+        },
+        {
+          "Month": 36,
+          "Value": 0.8
+        }
+      ]
+    },
+    "GrowthRateM37Plus": {
+      "count": 1,
+      "months": [
+        "37"
+      ],
+      "value_range": [
+        0.01,
+        0.01
+      ],
+      "sample_values": [
+        {
+          "Month": 37,
+          "Value": 0.01
+        }
+      ]
+    },
+    "ACHoutShare": {
+      "count": 5,
+      "months": [
+        "1",
+        "6",
+        "12",
+        "24",
+        "36"
+      ],
+      "value_range": [
+        0.06532244625895683,
+        0.3919074662926808
+      ],
+      "sample_values": [
+        {
+          "Month": 1,
+          "Value": 0.06532244625895683
+        },
+        {
+          "Month": 6,
+          "Value": 0.2448817570944315
+        },
+        {
+          "Month": 12,
+          "Value": 0.39190202449387646
+        },
+        {
+          "Month": 24,
+          "Value": 0.3919012989321207
+        },
+        {
+          "Month": 36,
+          "Value": 0.3919074662926808
+        }
+      ]
+    },
+    "RTPoutShare": {
+      "count": 5,
+      "months": [
+        "1",
+        "6",
+        "12",
+        "24",
+        "36"
+      ],
+      "value_range": [
+        0.02799533411098151,
+        0.16796034269686327
+      ],
+      "sample_values": [
+        {
+          "Month": 1,
+          "Value": 0.02799533411098151
+        },
+        {
+          "Month": 6,
+          "Value": 0.1049493244690421
+        },
+        {
+          "Month": 12,
+          "Value": 0.1679580104973757
+        },
+        {
+          "Month": 24,
+          "Value": 0.16795769954233752
+        },
+        {
+          "Month": 36,
+          "Value": 0.16796034269686327
+        }
+      ]
+    },
+    "WireOutShare": {
+      "count": 5,
+      "months": [
+        "1",
+        "6",
+        "12",
+        "24",
+        "36"
+      ],
+      "value_range": [
+        4.443325384717923e-05,
+        8.331944675887353e-05
+      ],
+      "sample_values": [
+        {
+          "Month": 1,
+          "Value": 8.331944675887353e-05
+        },
+        {
+          "Month": 6,
+          "Value": 7.710562614052073e-05
+        },
+        {
+          "Month": 12,
+          "Value": 4.582187786386737e-05
+        },
+        {
+          "Month": 24,
+          "Value": 4.443325384717923e-05
+        },
+        {
+          "Month": 36,
+          "Value": 4.4433953094408266e-05
+        }
+      ]
+    },
+    "DebitCardTransactionShare": {
+      "count": 5,
+      "months": [
+        "1",
+        "6",
+        "12",
+        "24",
+        "36"
+      ],
+      "value_range": [
+        0.03676132708390773,
+        0.20824262158529427
+      ],
+      "sample_values": [
+        {
+          "Month": 1,
+          "Value": 0.03676132708390773
+        },
+        {
+          "Month": 6,
+          "Value": 0.0658929371557094
+        },
+        {
+          "Month": 12,
+          "Value": 0.12778161648477507
+        },
+        {
+          "Month": 24,
+          "Value": 0.18930470485293127
+        },
+        {
+          "Month": 36,
+          "Value": 0.20824262158529427
+        }
+      ]
+    }
+  },
+  "summary": {}
+}
