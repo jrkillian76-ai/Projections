@@ -1,58 +1,28 @@
 let
-    // Get the CalculationsTable data
-    BaseData = CalculationsTable,
-    
-    // Add CheckingBalance calculation
-    #"Added Checking Balance" = Table.AddColumn(BaseData, "CheckingBalance", each
-        let
-            CurrentMonth = [Month],
-            CurrentScenario = [ScenarioName],
-            CurrentChecking = [Monthly_Checking],
-            UsageRate = [CheckingUsageRate]
-        in
-            if CurrentMonth = 1 then
-                CurrentChecking
-            else if CurrentMonth = 2 then
-                let
-                    Month1Row = Table.SelectRows(BaseData, each [Month] = 1 and [ScenarioName] = CurrentScenario){0},
-                    Month1Checking = Month1Row[Monthly_Checking]
-                in
-                    Month1Checking * UsageRate + CurrentChecking
-            else
-                let
-                    PrevMonthRow = Table.SelectRows(BaseData, each [Month] = CurrentMonth - 1 and [ScenarioName] = CurrentScenario){0},
-                    Month1Row = Table.SelectRows(BaseData, each [Month] = 1 and [ScenarioName] = CurrentScenario){0},
-                    PrevBalance = try PrevMonthRow[CheckingBalance] otherwise 0,
-                    Month1Checking = Month1Row[Monthly_Checking]
-                in
-                    (PrevBalance * UsageRate - Month1Checking * UsageRate) + CurrentChecking
-    ),
-    
-    // Add SavingsBalance calculation  
-    #"Added Savings Balance" = Table.AddColumn(#"Added Checking Balance", "SavingsBalance", each
-        let
-            CurrentMonth = [Month],
-            CurrentScenario = [ScenarioName],
-            CurrentSavings = [Monthly_Savings],
-            UsageRate = [SavingsUsageRate]
-        in
-            if CurrentMonth = 1 then
-                CurrentSavings
-            else if CurrentMonth = 2 then
-                let
-                    Month1Row = Table.SelectRows(#"Added Checking Balance", each [Month] = 1 and [ScenarioName] = CurrentScenario){0},
-                    Month1Savings = Month1Row[Monthly_Savings]
-                in
-                    Month1Savings * UsageRate + CurrentSavings
-            else
-                let
-                    PrevMonthRow = Table.SelectRows(#"Added Checking Balance", each [Month] = CurrentMonth - 1 and [ScenarioName] = CurrentScenario){0},
-                    Month1Row = Table.SelectRows(#"Added Checking Balance", each [Month] = 1 and [ScenarioName] = CurrentScenario){0},
-                    PrevBalance = try PrevMonthRow[SavingsBalance] otherwise 0,
-                    Month1Savings = Month1Row[Monthly_Savings]
-                in
-                    (PrevBalance * UsageRate - Month1Savings * UsageRate) + CurrentSavings
-    )
-    
+	BaseData = CalculationsTable,
+	AddBalancesToTable = (tbl as table) as table =>
+		let
+			Sorted = Table.Sort(tbl, {{"Month", Order.Ascending}}),
+			CheckingFlows = Table.Column(Sorted, "Monthly_Checking"),
+			CheckingRates = Table.Column(Sorted, "CheckingUsageRate"),
+			CheckingPairs = List.Zip({CheckingFlows, CheckingRates}),
+			CheckingAcc = List.Accumulate(CheckingPairs, {0}, (acc, pr) => acc & { List.Last(acc) * pr{1} + pr{0} }),
+			CheckingBalances = List.Skip(CheckingAcc),
+
+			SavingsFlows = Table.Column(Sorted, "Monthly_Savings"),
+			SavingsRates = Table.Column(Sorted, "SavingsUsageRate"),
+			SavingsPairs = List.Zip({SavingsFlows, SavingsRates}),
+			SavingsAcc = List.Accumulate(SavingsPairs, {0}, (acc, pr) => acc & { List.Last(acc) * pr{1} + pr{0} }),
+			SavingsBalances = List.Skip(SavingsAcc),
+
+			Result = Table.FromColumns(
+				Table.ToColumns(Sorted) & {CheckingBalances, SavingsBalances},
+				Table.ColumnNames(Sorted) & {"CheckingBalance", "SavingsBalance"}
+			)
+		in
+			Result,
+	Grouped = Table.Group(BaseData, {"ScenarioName", "ScenarioDisplay"}, {{"Rows", each AddBalancesToTable(_), type table}}),
+	Combined = Table.Combine(Grouped[Rows])
+
 in
-    #"Added Savings Balance"
+	Combined
