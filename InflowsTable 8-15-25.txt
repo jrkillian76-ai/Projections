@@ -1,0 +1,83 @@
+let
+    // Get base structure from AccountsTable (we need Active_Accounts for calculations)
+    BaseStructure = Table.SelectColumns(AccountsTable, {"Month", "ScenarioName", "ScenarioDisplay", "DefaultMultiplier", "Active_Accounts"}),
+    
+    // JOIN for ACH In Per Active
+    #"Joined ACHinPerActive" = Table.NestedJoin(BaseStructure, {"Month"}, 
+        Table.SelectRows(InterpolatedInputs, each [InputType] = "ACHinPerActive"), {"Month"}, 
+        "ACHinPerActiveData", JoinKind.LeftOuter),
+    #"Expanded ACHinPerActive" = Table.ExpandTableColumn(#"Joined ACHinPerActive", "ACHinPerActiveData", {"Value"}, {"ACHinPerActive"}),
+    
+    // JOIN for ACH In Rate
+    #"Joined ACHinRate" = Table.NestedJoin(#"Expanded ACHinPerActive", {"Month"}, 
+        Table.SelectRows(InterpolatedInputs, each [InputType] = "ACHinRate"), {"Month"}, 
+        "ACHinRateData", JoinKind.LeftOuter),
+    #"Expanded ACHinRate" = Table.ExpandTableColumn(#"Joined ACHinRate", "ACHinRateData", {"Value"}, {"ACHinRate"}),
+    
+    // Calculate ACH Inflows
+    #"Added ACHinQuantity" = Table.AddColumn(#"Expanded ACHinRate", "ACHinQuantity", each
+        [Active_Accounts] * [ACHinPerActive]
+    ),
+    #"Added ACHinAmount" = Table.AddColumn(#"Added ACHinQuantity", "ACHinAmount", each
+        [ACHinQuantity] * [ACHinRate]
+    ),
+    
+    // JOIN for RTP In Per Active
+    #"Joined RTPinPerActive" = Table.NestedJoin(#"Added ACHinAmount", {"Month"}, 
+        Table.SelectRows(InterpolatedInputs, each [InputType] = "RTPinPerActive"), {"Month"}, 
+        "RTPinPerActiveData", JoinKind.LeftOuter),
+    #"Expanded RTPinPerActive" = Table.ExpandTableColumn(#"Joined RTPinPerActive", "RTPinPerActiveData", {"Value"}, {"RTPinPerActive"}),
+    
+    // JOIN for RTP In Rate
+    #"Joined RTPinRate" = Table.NestedJoin(#"Expanded RTPinPerActive", {"Month"}, 
+        Table.SelectRows(InterpolatedInputs, each [InputType] = "RTPinRate"), {"Month"}, 
+        "RTPinRateData", JoinKind.LeftOuter),
+    #"Expanded RTPinRate" = Table.ExpandTableColumn(#"Joined RTPinRate", "RTPinRateData", {"Value"}, {"RTPinRate"}),
+    
+    // Calculate RTP Inflows
+    #"Added RTPinQuantity" = Table.AddColumn(#"Expanded RTPinRate", "RTPinQuantity", each
+        [Active_Accounts] * [RTPinPerActive]
+    ),
+    #"Added RTPinAmount" = Table.AddColumn(#"Added RTPinQuantity", "RTPinAmount", each
+        [RTPinQuantity] * [RTPinRate]
+    ),
+    
+    // JOIN for Wire In Per Active
+    #"Joined WireInPerActive" = Table.NestedJoin(#"Added RTPinAmount", {"Month"}, 
+        Table.SelectRows(InterpolatedInputs, each [InputType] = "WireInPerActive"), {"Month"}, 
+        "WireInPerActiveData", JoinKind.LeftOuter),
+    #"Expanded WireInPerActive" = Table.ExpandTableColumn(#"Joined WireInPerActive", "WireInPerActiveData", {"Value"}, {"WireInPerActive"}),
+    
+    // JOIN for Wire In Rate
+    #"Joined WireInRate" = Table.NestedJoin(#"Expanded WireInPerActive", {"Month"}, 
+        Table.SelectRows(InterpolatedInputs, each [InputType] = "WireInRate"), {"Month"}, 
+        "WireInRateData", JoinKind.LeftOuter),
+    #"Expanded WireInRate" = Table.ExpandTableColumn(#"Joined WireInRate", "WireInRateData", {"Value"}, {"WireInRate"}),
+    
+    // Calculate Wire Inflows
+    #"Added WireInQuantity" = Table.AddColumn(#"Expanded WireInRate", "WireInQuantity", each
+        [Active_Accounts] * [WireInPerActive]
+    ),
+    #"Added WireInAmount" = Table.AddColumn(#"Added WireInQuantity", "WireInAmount", each
+        [WireInQuantity] * [WireInRate]
+    ),
+    
+    // Calculate Total Inflows
+    #"Added Total Inflows" = Table.AddColumn(#"Added WireInAmount", "Total_Inflows", each
+        [ACHinAmount] + [RTPinAmount] + [WireInAmount]
+    ),
+    
+    // Clean up and set data types
+    #"Changed Types" = Table.TransformColumnTypes(#"Added Total Inflows",{
+        {"Month", Int64.Type},
+        {"ACHinQuantity", type number},
+        {"ACHinAmount", type number},
+        {"RTPinQuantity", type number},
+        {"RTPinAmount", type number},
+        {"WireInQuantity", type number},
+        {"WireInAmount", type number},
+        {"Total_Inflows", type number}
+    })
+    
+in
+    #"Changed Types"

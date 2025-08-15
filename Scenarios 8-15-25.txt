@@ -1,0 +1,11 @@
+let
+    Source = Table.FromRows({
+        {"Base", "Base", "Base case scenario", 1.0},
+        {"High_25", "Base +25%" , "+25% account growth", 1.25},
+        {"Low_25", "Base -25%" , "-25% account growth", 0.75},
+        {"High_50", "Base +50%" , "+50% account growth", 1.5},
+        {"Low_50", "Base -50%" , "-50% account growth", 0.5},
+        {"Custom", "Custom" , "Custom adjustable growth", 1.0}
+    }, {"ScenarioName", "ScenarioDisplay" , "Description", "DefaultMultiplier"})
+in
+    Source

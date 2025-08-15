@@ -1,0 +1,53 @@
+let
+    // Source: Reference your existing Parameters query
+    Source = Parameters,
+    #"Changed Type" = Table.TransformColumnTypes(Source,{{"InputType", type text}, {"Month", Int64.Type}, {"Value", type number}}),
+    
+    // Create complete month range (1 to 60)
+    MonthRange = List.Numbers(1, 60, 1),
+    MonthTable = Table.FromList(MonthRange, Splitter.SplitByNothing(), null, null, ExtraValues.Error),
+    #"Renamed Column" = Table.RenameColumns(MonthTable,{{"Column1", "Month"}}),
+    #"Changed Month Type" = Table.TransformColumnTypes(#"Renamed Column",{{"Month", Int64.Type}}),
+    
+    // Get unique input types
+    InputTypes = Table.Distinct(#"Changed Type", {"InputType"}),
+    
+    // Cross join: Every month × Every input type
+    CrossJoin = Table.AddColumn(#"Changed Month Type", "InputType", each InputTypes),
+    #"Expanded InputTypes" = Table.ExpandTableColumn(CrossJoin, "InputType", {"InputType"}, {"InputType"}),
+    
+    // Add interpolated values
+    #"Added Interpolation" = Table.AddColumn(#"Expanded InputTypes", "Value", each 
+        let
+            CurrentInputType = [InputType],
+            CurrentMonth = [Month],
+            
+            // Get key month values for this input type
+            M1Value = try Table.SelectRows(#"Changed Type", each [InputType] = CurrentInputType and [Month] = 1){0}[Value] otherwise 0,
+            M6Value = try Table.SelectRows(#"Changed Type", each [InputType] = CurrentInputType and [Month] = 6){0}[Value] otherwise M1Value,
+            M12Value = try Table.SelectRows(#"Changed Type", each [InputType] = CurrentInputType and [Month] = 12){0}[Value] otherwise M6Value,
+            M24Value = try Table.SelectRows(#"Changed Type", each [InputType] = CurrentInputType and [Month] = 24){0}[Value] otherwise M12Value,
+            M36Value = try Table.SelectRows(#"Changed Type", each [InputType] = CurrentInputType and [Month] = 36){0}[Value] otherwise M24Value,
+            
+            // Growth rate for beyond month 36
+            GrowthRate = try Table.SelectRows(#"Changed Type", each [InputType] = "GrowthRateM37Plus" and [Month] = 37){0}[Value] otherwise 0.01,
+            
+            // Interpolation logic
+            InterpolatedValue = 
+                if CurrentMonth = 1 then M1Value
+                else if CurrentMonth <= 6 then M1Value + (M6Value - M1Value) * (CurrentMonth - 1) / 5
+                else if CurrentMonth <= 12 then M6Value + (M12Value - M6Value) * (CurrentMonth - 6) / 6
+                else if CurrentMonth <= 24 then M12Value + (M24Value - M12Value) * (CurrentMonth - 12) / 12
+                else if CurrentMonth <= 36 then M24Value + (M36Value - M24Value) * (CurrentMonth - 24) / 12
+                else M36Value * Number.Power(1 + GrowthRate, CurrentMonth - 36)
+        in
+            InterpolatedValue
+    ),
+    
+    // Clean up data types
+    #"Changed Value Type" = Table.TransformColumnTypes(#"Added Interpolation",{{"Value", type number}}),
+    
+    // Reorder columns
+    #"Reordered Columns" = Table.ReorderColumns(#"Changed Value Type",{"InputType", "Month", "Value"})
+in
+    #"Reordered Columns"

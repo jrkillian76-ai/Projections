@@ -1,0 +1,65 @@
+let
+    // Step 1: Create Month × Scenario cross join
+    MonthRange = List.Numbers(1, 60, 1),
+    MonthTable = Table.FromList(MonthRange, Splitter.SplitByNothing(), null, null, ExtraValues.Error),
+    #"Renamed Month Column" = Table.RenameColumns(MonthTable,{{"Column1", "Month"}}),
+    
+    // Get scenarios  
+    ScenariosData = Scenarios,
+    CrossJoin = Table.AddColumn(#"Renamed Month Column", "Scenario", each ScenariosData),
+    #"Expanded Scenarios" = Table.ExpandTableColumn(CrossJoin, "Scenario", {"ScenarioName", "ScenarioDisplay", "DefaultMultiplier"}, {"ScenarioName", "ScenarioDisplay", "DefaultMultiplier"}),
+    
+    // JOIN method for all lookups (consistent pattern)
+    #"Joined Accounts" = Table.NestedJoin(#"Expanded Scenarios", {"Month"}, 
+        Table.SelectRows(InterpolatedInputs, each [InputType] = "Accounts"), {"Month"}, 
+        "AccountsData", JoinKind.LeftOuter),
+    #"Expanded Accounts" = Table.ExpandTableColumn(#"Joined Accounts", "AccountsData", {"Value"}, {"BaseAccounts"}),
+    
+    #"Added Accounts" = Table.AddColumn(#"Expanded Accounts", "Accounts", each
+        Number.Round([BaseAccounts] * (if [ScenarioName] = "Custom" then 1.0 else [DefaultMultiplier]), 0)
+    ),
+    
+    // JOIN for ActiveShare
+    #"Joined ActiveShare" = Table.NestedJoin(#"Added Accounts", {"Month"}, 
+        Table.SelectRows(InterpolatedInputs, each [InputType] = "ActiveShare"), {"Month"}, 
+        "ActiveShareData", JoinKind.LeftOuter),
+    #"Expanded ActiveShare" = Table.ExpandTableColumn(#"Joined ActiveShare", "ActiveShareData", {"Value"}, {"ActiveShare"}),
+    
+    #"Added Active Accounts" = Table.AddColumn(#"Expanded ActiveShare", "Active_Accounts", each
+        Number.Round([Accounts] * [ActiveShare], 0)
+    ),
+    
+    // JOIN for CheckingShare
+    #"Joined CheckingShare" = Table.NestedJoin(#"Added Active Accounts", {"Month"}, 
+        Table.SelectRows(InterpolatedInputs, each [InputType] = "CheckingShare"), {"Month"}, 
+        "CheckingShareData", JoinKind.LeftOuter),
+    #"Expanded CheckingShare" = Table.ExpandTableColumn(#"Joined CheckingShare", "CheckingShareData", {"Value"}, {"CheckingShare"}),
+    
+    #"Added Checking Accounts" = Table.AddColumn(#"Expanded CheckingShare", "Checking_Accounts", each
+        Number.Round([Active_Accounts] * [CheckingShare], 0)
+    ),
+    
+    // JOIN for SavingShare
+    #"Joined SavingShare" = Table.NestedJoin(#"Added Checking Accounts", {"Month"}, 
+        Table.SelectRows(InterpolatedInputs, each [InputType] = "SavingShare"), {"Month"}, 
+        "SavingShareData", JoinKind.LeftOuter),
+    #"Expanded SavingShare" = Table.ExpandTableColumn(#"Joined SavingShare", "SavingShareData", {"Value"}, {"SavingShare"}),
+    
+    #"Added Savings Accounts" = Table.AddColumn(#"Expanded SavingShare", "Savings_Accounts", each
+        Number.Round([Active_Accounts] * [SavingShare], 0)
+    ),
+    
+    // Remove intermediate column (from the FINAL step)
+    #"Removed BaseAccounts" = Table.RemoveColumns(#"Added Savings Accounts", {"BaseAccounts"}),
+    
+    #"Changed Types" = Table.TransformColumnTypes(#"Removed BaseAccounts",{
+        {"Month", Int64.Type},
+        {"Accounts", type number},
+        {"Active_Accounts", type number},
+        {"Checking_Accounts", type number},
+        {"Savings_Accounts", type number}
+    }),
+    #"Filtered Rows" = Table.SelectRows(#"Changed Types", each true)
+    
+in
+    #"Filtered Rows"
