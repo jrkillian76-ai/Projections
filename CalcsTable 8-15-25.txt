@@ -1,0 +1,75 @@
+let
+    // Base structure from AccountsTable (preserve scenario columns and account counts)
+    Base = AccountsTable,
+
+    // Bring in Total_Inflows from InflowsTable
+    JoinedInflows = Table.NestedJoin(Base, {"Month", "ScenarioName"},
+        Table.SelectColumns(InflowsTable, {"Month", "ScenarioName", "Total_Inflows"}), {"Month", "ScenarioName"},
+        "InflowsData", JoinKind.LeftOuter),
+    ExpandedInflows = Table.ExpandTableColumn(JoinedInflows, "InflowsData", {"Total_Inflows"}, {"Total_Inflows"}),
+
+    // Bring in Total_Outflows from OutflowsTable
+    JoinedOutflows = Table.NestedJoin(ExpandedInflows, {"Month", "ScenarioName"},
+        Table.SelectColumns(OutflowsTable, {"Month", "ScenarioName", "Total_Outflows"}), {"Month", "ScenarioName"},
+        "OutflowsData", JoinKind.LeftOuter),
+    ExpandedOutflows = Table.ExpandTableColumn(JoinedOutflows, "OutflowsData", {"Total_Outflows"}, {"Total_Outflows"}),
+
+    // Net remaining after outflows
+    AddedNet = Table.AddColumn(ExpandedOutflows, "Net_Remaining_For_Savings", each
+        [Total_Inflows] - [Total_Outflows]
+    ),
+
+    // Savings transfer rate from inputs
+    JoinedSavingsTransferRate = Table.NestedJoin(AddedNet, {"Month"},
+        Table.SelectRows(InterpolatedInputs, each [InputType] = "SavingsTransferRate"), {"Month"},
+        "SavingsTransferRateData", JoinKind.LeftOuter),
+    ExpandedSavingsTransferRate = Table.ExpandTableColumn(JoinedSavingsTransferRate, "SavingsTransferRateData", {"Value"}, {"SavingsTransferRate"}),
+
+    // Savings transfers and monthly flows
+    AddedSavingsTransfers = Table.AddColumn(ExpandedSavingsTransferRate, "SavingsTransfers", each
+        [Net_Remaining_For_Savings] * [SavingsTransferRate]
+    ),
+    AddedMonthlyChecking = Table.AddColumn(AddedSavingsTransfers, "Monthly_Checking", each
+        [Net_Remaining_For_Savings] - [SavingsTransfers]
+    ),
+    AddedMonthlySavings = Table.AddColumn(AddedMonthlyChecking, "Monthly_Savings", each
+        [SavingsTransfers]
+    ),
+
+    // Usage rates from inputs
+    JoinedCheckingUsageRate = Table.NestedJoin(AddedMonthlySavings, {"Month"},
+        Table.SelectRows(InterpolatedInputs, each [InputType] = "CheckingUsageRate"), {"Month"},
+        "CheckingUsageRateData", JoinKind.LeftOuter),
+    ExpandedCheckingUsageRate = Table.ExpandTableColumn(JoinedCheckingUsageRate, "CheckingUsageRateData", {"Value"}, {"CheckingUsageRate"}),
+
+    JoinedSavingsUsageRate = Table.NestedJoin(ExpandedCheckingUsageRate, {"Month"},
+        Table.SelectRows(InterpolatedInputs, each [InputType] = "SavingsUsageRate"), {"Month"},
+        "SavingsUsageRateData", JoinKind.LeftOuter),
+    ExpandedSavingsUsageRate = Table.ExpandTableColumn(JoinedSavingsUsageRate, "SavingsUsageRateData", {"Value"}, {"SavingsUsageRate"}),
+
+    // Usage amounts
+    AddedCheckingUsage = Table.AddColumn(ExpandedSavingsUsageRate, "CheckingUsage", each
+        [Monthly_Checking] * [CheckingUsageRate]
+    ),
+    AddedSavingsUsage = Table.AddColumn(AddedCheckingUsage, "SavingsUsage", each
+        [Monthly_Savings] * [SavingsUsageRate]
+    ),
+
+    // Data types
+    ChangedTypes = Table.TransformColumnTypes(AddedSavingsUsage,{
+        {"Month", Int64.Type},
+        {"Total_Inflows", type number},
+        {"Total_Outflows", type number},
+        {"Net_Remaining_For_Savings", type number},
+        {"SavingsTransferRate", type number},
+        {"SavingsTransfers", type number},
+        {"Monthly_Checking", type number},
+        {"Monthly_Savings", type number},
+        {"CheckingUsageRate", type number},
+        {"SavingsUsageRate", type number},
+        {"CheckingUsage", type number},
+        {"SavingsUsage", type number}
+    })
+in
+    ChangedTypes
+
