@@ -1,0 +1,83 @@
+let
+    // Base from balances and calcs
+    Base = Table.NestedJoin(BalancesTable, {"Month", "ScenarioName"},
+        Table.SelectColumns(CalcsTable, {"Month", "ScenarioName", "Monthly_Checking", "Monthly_Savings"}), {"Month", "ScenarioName"},
+        "Calcs", JoinKind.LeftOuter),
+    Expanded = Table.ExpandTableColumn(Base, "Calcs", {"Monthly_Checking", "Monthly_Savings"}, {"Monthly_Checking", "Monthly_Savings"}),
+
+    // Inputs for Platform fees, membership, interchange share, SG&A
+    JoinedPlatformInterchangeRate = Table.NestedJoin(Expanded, {"Month"},
+        Table.SelectRows(InterpolatedInputs, each [InputType] = "PlatformInterchangeRate"), {"Month"},
+        "PlatformInterchangeRateData", JoinKind.LeftOuter),
+    ExpandedPlatformInterchangeRate = Table.ExpandTableColumn(JoinedPlatformInterchangeRate, "PlatformInterchangeRateData", {"Value"}, {"PlatformInterchangeRate"}),
+
+    JoinedMembershipFee = Table.NestedJoin(ExpandedPlatformInterchangeRate, {"Month"},
+        Table.SelectRows(InterpolatedInputs, each [InputType] = "MembershipFeePerActive"), {"Month"},
+        "MembershipFeeData", JoinKind.LeftOuter),
+    ExpandedMembershipFee = Table.ExpandTableColumn(JoinedMembershipFee, "MembershipFeeData", {"Value"}, {"MembershipFeePerActive"}),
+
+    JoinedOtherFees = Table.NestedJoin(ExpandedMembershipFee, {"Month"},
+        Table.SelectRows(InterpolatedInputs, each [InputType] = "OtherFeesPerActive"), {"Month"},
+        "OtherFeesData", JoinKind.LeftOuter),
+    ExpandedOtherFees = Table.ExpandTableColumn(JoinedOtherFees, "OtherFeesData", {"Value"}, {"OtherFeesPerActive"}),
+
+    JoinedSGA = Table.NestedJoin(ExpandedOtherFees, {"Month"},
+        Table.SelectRows(InterpolatedInputs, each [InputType] = "PlatformSGA"), {"Month"},
+        "SGAData", JoinKind.LeftOuter),
+    ExpandedSGA = Table.ExpandTableColumn(JoinedSGA, "SGAData", {"Value"}, {"PlatformSGA"}),
+
+    // Get Active_Accounts for per-active fees
+    JoinedActive = Table.NestedJoin(ExpandedSGA, {"Month", "ScenarioName"},
+        Table.SelectColumns(AccountsTable, {"Month", "ScenarioName", "Active_Accounts"}), {"Month", "ScenarioName"},
+        "ActiveData", JoinKind.LeftOuter),
+    ExpandedActive = Table.ExpandTableColumn(JoinedActive, "ActiveData", {"Active_Accounts"}, {"Active_Accounts"}),
+
+    // Bring DebitCardTransactionAmount as interchange base
+    JoinedDebit = Table.NestedJoin(ExpandedActive, {"Month", "ScenarioName"},
+        Table.SelectColumns(OutflowsTable, {"Month", "ScenarioName", "DebitCardTransactionAmount"}), {"Month", "ScenarioName"},
+        "DebitOut", JoinKind.LeftOuter),
+    ExpandedDebit = Table.ExpandTableColumn(JoinedDebit, "DebitOut", {"DebitCardTransactionAmount"}, {"DebitCardTransactionAmount"}),
+
+    // Calculations
+    AddedMembershipRevenue = Table.AddColumn(ExpandedDebit, "MembershipRevenue", each
+        [Active_Accounts] * [MembershipFeePerActive]
+    ),
+    AddedOtherFeeRevenue = Table.AddColumn(AddedMembershipRevenue, "OtherFeeRevenue", each
+        [Active_Accounts] * [OtherFeesPerActive]
+    ),
+    AddedInterchangeRevenue = Table.AddColumn(AddedOtherFeeRevenue, "InterchangeRevenue", each
+        [DebitCardTransactionAmount] * [PlatformInterchangeRate]
+    ),
+    AddedTotalRevenue = Table.AddColumn(AddedInterchangeRevenue, "TotalRevenue", each
+        [MembershipRevenue] + [OtherFeeRevenue] + [InterchangeRevenue]
+    ),
+
+    AddedSGACost = Table.AddColumn(AddedTotalRevenue, "PlatformSGA_Cost", each
+        [PlatformSGA]
+    ),
+    AddedContribution = Table.AddColumn(AddedSGACost, "PlatformContribution", each
+        [TotalRevenue] - [PlatformSGA_Cost]
+    ),
+
+    ChangedTypes = Table.TransformColumnTypes(AddedContribution, {
+        {"Month", Int64.Type},
+        {"CheckingBalance", type number},
+        {"SavingsBalance", type number},
+        {"Monthly_Checking", type number},
+        {"Monthly_Savings", type number},
+        {"PlatformInterchangeRate", type number},
+        {"MembershipFeePerActive", type number},
+        {"OtherFeesPerActive", type number},
+        {"PlatformSGA", type number},
+        {"Active_Accounts", type number},
+        {"DebitCardTransactionAmount", type number},
+        {"MembershipRevenue", type number},
+        {"OtherFeeRevenue", type number},
+        {"InterchangeRevenue", type number},
+        {"TotalRevenue", type number},
+        {"PlatformSGA_Cost", type number},
+        {"PlatformContribution", type number}
+    })
+in
+    ChangedTypes
+

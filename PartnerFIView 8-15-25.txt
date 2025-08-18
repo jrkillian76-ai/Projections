@@ -1,0 +1,46 @@
+let
+    // Base from balances to leverage balances and scenario context
+    Base = Table.SelectColumns(BalancesTable, {"Month", "ScenarioName", "ScenarioDisplay", "CheckingBalance", "SavingsBalance"}),
+
+    // Bring DebitCardTransactionAmount as the spend base for interchange
+    JoinedDebitSpend = Table.NestedJoin(Base, {"Month", "ScenarioName"},
+        Table.SelectColumns(OutflowsTable, {"Month", "ScenarioName", "DebitCardTransactionAmount"}), {"Month", "ScenarioName"},
+        "DebitData", JoinKind.LeftOuter),
+    ExpandedDebit = Table.ExpandTableColumn(JoinedDebitSpend, "DebitData", {"DebitCardTransactionAmount"}, {"DebitCardTransactionAmount"}),
+
+    // Partner rates from inputs
+    JoinedInterchangeRate = Table.NestedJoin(ExpandedDebit, {"Month"},
+        Table.SelectRows(InterpolatedInputs, each [InputType] = "PartnerInterchangeRate"), {"Month"},
+        "PartnerInterchangeRateData", JoinKind.LeftOuter),
+    ExpandedInterchangeRate = Table.ExpandTableColumn(JoinedInterchangeRate, "PartnerInterchangeRateData", {"Value"}, {"PartnerInterchangeRate"}),
+
+    JoinedInterestRate = Table.NestedJoin(ExpandedInterchangeRate, {"Month"},
+        Table.SelectRows(InterpolatedInputs, each [InputType] = "PartnerInterestRate"), {"Month"},
+        "PartnerInterestRateData", JoinKind.LeftOuter),
+    ExpandedInterestRate = Table.ExpandTableColumn(JoinedInterestRate, "PartnerInterestRateData", {"Value"}, {"PartnerInterestRate"}),
+
+    // Replace null rate values with 0 to avoid null math
+    FilledRates = Table.ReplaceValue(ExpandedInterestRate, null, 0, Replacer.ReplaceValue, {"PartnerInterchangeRate", "PartnerInterestRate"}),
+
+    // Calculations
+    AddedPartnerInterchange = Table.AddColumn(FilledRates, "Partner_Interchange_Revenue", each
+        [DebitCardTransactionAmount] * [PartnerInterchangeRate]
+    ),
+    AddedPartnerInterest = Table.AddColumn(AddedPartnerInterchange, "Partner_Interest_Amount", each
+        ([CheckingBalance] + [SavingsBalance]) * [PartnerInterestRate]
+    ),
+
+    // Data types
+    ChangedTypes = Table.TransformColumnTypes(AddedPartnerInterest, {
+        {"Month", Int64.Type},
+        {"CheckingBalance", type number},
+        {"SavingsBalance", type number},
+        {"DebitCardTransactionAmount", type number},
+        {"PartnerInterchangeRate", type number},
+        {"PartnerInterestRate", type number},
+        {"Partner_Interchange_Revenue", type number},
+        {"Partner_Interest_Amount", type number}
+    })
+in
+    ChangedTypes
+
