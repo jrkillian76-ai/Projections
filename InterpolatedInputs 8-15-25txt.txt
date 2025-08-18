@@ -31,6 +31,7 @@ let
             
             // Growth rate for beyond month 36
             GrowthRate = try Table.SelectRows(#"Changed Type", each [InputType] = "GrowthRateM37Plus" and [Month] = 37){0}[Value] otherwise 0.01,
+            M37Value = M36Value * (1 + GrowthRate),
             
             // Interpolation logic
             InterpolatedValue = 
@@ -39,7 +40,9 @@ let
                 else if CurrentMonth <= 12 then M6Value + (M12Value - M6Value) * (CurrentMonth - 6) / 6
                 else if CurrentMonth <= 24 then M12Value + (M24Value - M12Value) * (CurrentMonth - 12) / 12
                 else if CurrentMonth <= 36 then M24Value + (M36Value - M24Value) * (CurrentMonth - 24) / 12
-                else M36Value * Number.Power(1 + GrowthRate, CurrentMonth - 36)
+                else if CurrentMonth = 37 then M37Value
+                else if CurrentInputType = "Accounts" then M36Value * Number.Power(1 + GrowthRate, CurrentMonth - 36)
+                else M37Value
         in
             InterpolatedValue
     ),
