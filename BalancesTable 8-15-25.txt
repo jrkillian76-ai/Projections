@@ -6,15 +6,15 @@ let
             Sorted = Table.Sort(tbl, {{"Month", Order.Ascending}}),
 
             CheckingFlows = Table.Column(Sorted, "Monthly_Checking"),
-            CheckingRates = Table.Column(Sorted, "CheckingUsageRate"),
-            CheckingPairs = List.Zip({CheckingFlows, CheckingRates}),
-            CheckingAcc = List.Accumulate(CheckingPairs, {0}, (acc, pr) => acc & { List.Last(acc) * pr{1} + pr{0} }),
+            CheckingUsage = Table.Column(Sorted, "CheckingUsage"),
+            CheckingPairs = List.Zip({CheckingFlows, CheckingUsage}),
+            CheckingAcc = List.Accumulate(CheckingPairs, {0}, (acc, pr) => acc & { List.Last(acc) + pr{0} - pr{1} }),
             CheckingBalances = List.Skip(CheckingAcc),
 
             SavingsFlows = Table.Column(Sorted, "Monthly_Savings"),
-            SavingsRates = Table.Column(Sorted, "SavingsUsageRate"),
-            SavingsPairs = List.Zip({SavingsFlows, SavingsRates}),
-            SavingsAcc = List.Accumulate(SavingsPairs, {0}, (acc, pr) => acc & { List.Last(acc) * pr{1} + pr{0} }),
+            SavingsUsage = Table.Column(Sorted, "SavingsUsage"),
+            SavingsPairs = List.Zip({SavingsFlows, SavingsUsage}),
+            SavingsAcc = List.Accumulate(SavingsPairs, {0}, (acc, pr) => acc & { List.Last(acc) + pr{0} - pr{1} }),
             SavingsBalances = List.Skip(SavingsAcc),
 
             Result = Table.FromColumns(

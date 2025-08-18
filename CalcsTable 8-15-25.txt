@@ -47,16 +47,39 @@ let
         "SavingsUsageRateData", JoinKind.LeftOuter),
     ExpandedSavingsUsageRate = Table.ExpandTableColumn(JoinedSavingsUsageRate, "SavingsUsageRateData", {"Value"}, {"SavingsUsageRate"}),
 
-    // Usage amounts
-    AddedCheckingUsage = Table.AddColumn(ExpandedSavingsUsageRate, "CheckingUsage", each
-        [Monthly_Checking] * [CheckingUsageRate]
-    ),
-    AddedSavingsUsage = Table.AddColumn(AddedCheckingUsage, "SavingsUsage", each
-        [Monthly_Savings] * [SavingsUsageRate]
-    ),
+    // Usage amounts: month 1 = 0; month 2+ = prior period balance * usage rate
+    GroupedUsage = Table.Group(ExpandedSavingsUsageRate, {"ScenarioName", "ScenarioDisplay"}, {{"Rows", each
+        let
+            Sorted = Table.Sort(_, {{"Month", Order.Ascending}}),
+
+            // Checking usage from prior balance
+            C_Flows = Table.Column(Sorted, "Monthly_Checking"),
+            C_Rates = Table.Column(Sorted, "CheckingUsageRate"),
+            C_Pairs = List.Zip({C_Flows, C_Rates}),
+            C_Acc = List.Accumulate(C_Pairs, {0}, (acc, pr) => acc & { List.Last(acc) * (1 - pr{1}) + pr{0} }),
+            C_Balances = List.Skip(C_Acc),
+            C_PrevBalances = {0} & List.RemoveLastN(C_Balances, 1),
+            C_Usage = List.Transform(List.Zip({C_PrevBalances, C_Rates}), each _{0} * _{1}),
+
+            // Savings usage from prior balance
+            S_Flows = Table.Column(Sorted, "Monthly_Savings"),
+            S_Rates = Table.Column(Sorted, "SavingsUsageRate"),
+            S_Pairs = List.Zip({S_Flows, S_Rates}),
+            S_Acc = List.Accumulate(S_Pairs, {0}, (acc, pr) => acc & { List.Last(acc) * (1 - pr{1}) + pr{0} }),
+            S_Balances = List.Skip(S_Acc),
+            S_PrevBalances = {0} & List.RemoveLastN(S_Balances, 1),
+            S_Usage = List.Transform(List.Zip({S_PrevBalances, S_Rates}), each _{0} * _{1}),
+
+            Result = Table.FromColumns(
+                Table.ToColumns(Sorted) & {C_Usage, S_Usage},
+                Table.ColumnNames(Sorted) & {"CheckingUsage", "SavingsUsage"}
+            )
+        in
+            Result, type table}}),
+    CombinedUsage = Table.Combine(GroupedUsage[Rows]),
 
     // Data types
-    ChangedTypes = Table.TransformColumnTypes(AddedSavingsUsage,{
+    ChangedTypes = Table.TransformColumnTypes(CombinedUsage,{
         {"Month", Int64.Type},
         {"Total_Inflows", type number},
         {"Total_Outflows", type number},
