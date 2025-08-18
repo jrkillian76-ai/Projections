@@ -25,7 +25,11 @@ let
             Result,
 
     Grouped = Table.Group(BaseData, {"ScenarioName", "ScenarioDisplay"}, {{"Rows", each AddBalancesToTable(_), type table}}),
-    Combined = Table.Combine(Grouped[Rows])
+    Combined = Table.Combine(Grouped[Rows]),
+    ChangedTypes = Table.TransformColumnTypes(Combined, {
+        {"CheckingBalance", type number},
+        {"SavingsBalance", type number}
+    })
 in
-    Combined
+    ChangedTypes
 
