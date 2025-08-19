@@ -1,15 +1,31 @@
 let
-    // Base: accounts context
-    Base = Table.SelectColumns(AccountsTable, {"Month", "ScenarioName", "ScenarioDisplay", "Active_Accounts", "Checking_Accounts", "Savings_Accounts"}),
+    // Compute monthly average balances internally from balances
+    BalBase = Table.SelectColumns(BalancesTable, {"Month", "ScenarioName", "ScenarioDisplay", "CheckingBalance", "SavingsBalance"}),
+    Grouped = Table.Group(BalBase, {"ScenarioName", "ScenarioDisplay"}, {{"Rows", each
+        let
+            Sorted = Table.Sort(_, {{"Month", Order.Ascending}}),
+            C_Bal = Table.Column(Sorted, "CheckingBalance"),
+            C_Prev = {0} & List.RemoveLastN(C_Bal, 1),
+            AvgChecking = List.Transform(List.Zip({C_Prev, C_Bal}), each (_{0} + _{1}) / 2),
+            S_Bal = Table.Column(Sorted, "SavingsBalance"),
+            S_Prev = {0} & List.RemoveLastN(S_Bal, 1),
+            AvgSavings = List.Transform(List.Zip({S_Prev, S_Bal}), each (_{0} + _{1}) / 2),
+            Result = Table.FromColumns(
+                Table.ToColumns(Sorted) & {AvgChecking, AvgSavings},
+                Table.ColumnNames(Sorted) & {"AvgCheckingBalance", "AvgSavingsBalance"}
+            )
+        in
+            Result, type table}}),
+    WithAverages = Table.Combine(Grouped[Rows]),
 
-    // Bring monthly average balances from PartnerFIView
-    JoinedPartner = Table.NestedJoin(Base, {"Month", "ScenarioName"},
-        Table.SelectColumns(PartnerFIView, {"Month", "ScenarioName", "AvgCheckingBalance", "AvgSavingsBalance"}), {"Month", "ScenarioName"},
-        "PartnerData", JoinKind.LeftOuter),
-    ExpandedPartner = Table.ExpandTableColumn(JoinedPartner, "PartnerData", {"AvgCheckingBalance", "AvgSavingsBalance"}, {"AvgCheckingBalance", "AvgSavingsBalance"}),
+    // Bring in accounts context
+    JoinedAccounts = Table.NestedJoin(WithAverages, {"Month", "ScenarioName"},
+        Table.SelectColumns(AccountsTable, {"Month", "ScenarioName", "Active_Accounts", "Checking_Accounts", "Savings_Accounts"}), {"Month", "ScenarioName"},
+        "AccountsData", JoinKind.LeftOuter),
+    ExpandedAccounts = Table.ExpandTableColumn(JoinedAccounts, "AccountsData", {"Active_Accounts", "Checking_Accounts", "Savings_Accounts"}, {"Active_Accounts", "Checking_Accounts", "Savings_Accounts"}),
 
     // Bring inflow counts and amounts
-    JoinedInflows = Table.NestedJoin(ExpandedPartner, {"Month", "ScenarioName"},
+    JoinedInflows = Table.NestedJoin(ExpandedAccounts, {"Month", "ScenarioName"},
         Table.SelectColumns(InflowsTable, {"Month", "ScenarioName", "ACHinQuantity", "ACHinAmount", "WireInQuantity", "WireInAmount"}), {"Month", "ScenarioName"},
         "InflowsData", JoinKind.LeftOuter),
     ExpandedInflows = Table.ExpandTableColumn(JoinedInflows, "InflowsData", {"ACHinQuantity", "ACHinAmount", "WireInQuantity", "WireInAmount"}, {"ACHinQuantity", "ACHinAmount", "WireInQuantity", "WireInAmount"}),
