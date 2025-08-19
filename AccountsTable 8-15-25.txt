@@ -16,7 +16,7 @@ let
     #"Expanded Accounts" = Table.ExpandTableColumn(#"Joined Accounts", "AccountsData", {"Value"}, {"BaseAccounts"}),
     
     #"Added Accounts" = Table.AddColumn(#"Expanded Accounts", "Accounts", each
-        Number.Round([BaseAccounts] * (if [ScenarioName] = "Custom" then 1.0 else [DefaultMultiplier]), 0)
+        Number.RoundDown([BaseAccounts] * (if [ScenarioName] = "Custom" then 1.0 else [DefaultMultiplier]), 0)
     ),
     
     // JOIN for ActiveShare
@@ -26,7 +26,7 @@ let
     #"Expanded ActiveShare" = Table.ExpandTableColumn(#"Joined ActiveShare", "ActiveShareData", {"Value"}, {"ActiveShare"}),
     
     #"Added Active Accounts" = Table.AddColumn(#"Expanded ActiveShare", "Active_Accounts", each
-        Number.Round([Accounts] * [ActiveShare], 0)
+        Number.RoundDown([Accounts] * [ActiveShare], 0)
     ),
     
     // JOIN for CheckingShare
@@ -36,7 +36,7 @@ let
     #"Expanded CheckingShare" = Table.ExpandTableColumn(#"Joined CheckingShare", "CheckingShareData", {"Value"}, {"CheckingShare"}),
     
     #"Added Checking Accounts" = Table.AddColumn(#"Expanded CheckingShare", "Checking_Accounts", each
-        Number.Round([Active_Accounts] * [CheckingShare], 0)
+        Number.RoundDown([Active_Accounts] * [CheckingShare], 0)
     ),
     
     // JOIN for SavingShare
@@ -46,7 +46,7 @@ let
     #"Expanded SavingShare" = Table.ExpandTableColumn(#"Joined SavingShare", "SavingShareData", {"Value"}, {"SavingShare"}),
     
     #"Added Savings Accounts" = Table.AddColumn(#"Expanded SavingShare", "Savings_Accounts", each
-        Number.Round([Active_Accounts] * [SavingShare], 0)
+        Number.RoundDown([Active_Accounts] * [SavingShare], 0)
     ),
     
     // Remove intermediate column (from the FINAL step)

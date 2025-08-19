@@ -1,0 +1,98 @@
+let
+    // Base structure from AccountsTable (preserve scenario columns and account counts)
+    Base = AccountsTable,
+
+    // Bring in Total_Inflows from InflowsTable
+    JoinedInflows = Table.NestedJoin(Base, {"Month", "ScenarioName"},
+        Table.SelectColumns(InflowsTable, {"Month", "ScenarioName", "Total_Inflows"}), {"Month", "ScenarioName"},
+        "InflowsData", JoinKind.LeftOuter),
+    ExpandedInflows = Table.ExpandTableColumn(JoinedInflows, "InflowsData", {"Total_Inflows"}, {"Total_Inflows"}),
+
+    // Bring in Total_Outflows from OutflowsTable
+    JoinedOutflows = Table.NestedJoin(ExpandedInflows, {"Month", "ScenarioName"},
+        Table.SelectColumns(OutflowsTable, {"Month", "ScenarioName", "Total_Outflows"}), {"Month", "ScenarioName"},
+        "OutflowsData", JoinKind.LeftOuter),
+    ExpandedOutflows = Table.ExpandTableColumn(JoinedOutflows, "OutflowsData", {"Total_Outflows"}, {"Total_Outflows"}),
+
+    // Net remaining after outflows
+    AddedNet = Table.AddColumn(ExpandedOutflows, "Net_Remaining_For_Savings", each
+        [Total_Inflows] - [Total_Outflows]
+    ),
+
+    // Savings transfer rate from inputs
+    JoinedSavingsTransferRate = Table.NestedJoin(AddedNet, {"Month"},
+        Table.SelectRows(InterpolatedInputs, each [InputType] = "SavingsTransferRate"), {"Month"},
+        "SavingsTransferRateData", JoinKind.LeftOuter),
+    ExpandedSavingsTransferRate = Table.ExpandTableColumn(JoinedSavingsTransferRate, "SavingsTransferRateData", {"Value"}, {"SavingsTransferRate"}),
+
+    // Savings transfers and monthly flows
+    AddedSavingsTransfers = Table.AddColumn(ExpandedSavingsTransferRate, "SavingsTransfers", each
+        [Net_Remaining_For_Savings] * [SavingsTransferRate]
+    ),
+    AddedMonthlyChecking = Table.AddColumn(AddedSavingsTransfers, "Monthly_Checking", each
+        [Net_Remaining_For_Savings] - [SavingsTransfers]
+    ),
+    AddedMonthlySavings = Table.AddColumn(AddedMonthlyChecking, "Monthly_Savings", each
+        [SavingsTransfers]
+    ),
+
+    // Usage rates from inputs
+    JoinedCheckingUsageRate = Table.NestedJoin(AddedMonthlySavings, {"Month"},
+        Table.SelectRows(InterpolatedInputs, each [InputType] = "CheckingUsageRate"), {"Month"},
+        "CheckingUsageRateData", JoinKind.LeftOuter),
+    ExpandedCheckingUsageRate = Table.ExpandTableColumn(JoinedCheckingUsageRate, "CheckingUsageRateData", {"Value"}, {"CheckingUsageRate"}),
+
+    JoinedSavingsUsageRate = Table.NestedJoin(ExpandedCheckingUsageRate, {"Month"},
+        Table.SelectRows(InterpolatedInputs, each [InputType] = "SavingsUsageRate"), {"Month"},
+        "SavingsUsageRateData", JoinKind.LeftOuter),
+    ExpandedSavingsUsageRate = Table.ExpandTableColumn(JoinedSavingsUsageRate, "SavingsUsageRateData", {"Value"}, {"SavingsUsageRate"}),
+
+    // Usage amounts: month 1 = 0; month 2+ = prior period balance * usage rate
+    GroupedUsage = Table.Group(ExpandedSavingsUsageRate, {"ScenarioName", "ScenarioDisplay"}, {{"Rows", each
+        let
+            Sorted = Table.Sort(_, {{"Month", Order.Ascending}}),
+
+            // Checking usage from prior balance
+            C_Flows = Table.Column(Sorted, "Monthly_Checking"),
+            C_Rates = Table.Column(Sorted, "CheckingUsageRate"),
+            C_Pairs = List.Zip({C_Flows, C_Rates}),
+            C_Acc = List.Accumulate(C_Pairs, {0}, (acc, pr) => acc & { List.Last(acc) * (1 - pr{1}) + pr{0} }),
+            C_Balances = List.Skip(C_Acc),
+            C_PrevBalances = {0} & List.RemoveLastN(C_Balances, 1),
+            C_Usage = List.Transform(List.Zip({C_PrevBalances, C_Rates}), each _{0} * _{1}),
+
+            // Savings usage from prior balance
+            S_Flows = Table.Column(Sorted, "Monthly_Savings"),
+            S_Rates = Table.Column(Sorted, "SavingsUsageRate"),
+            S_Pairs = List.Zip({S_Flows, S_Rates}),
+            S_Acc = List.Accumulate(S_Pairs, {0}, (acc, pr) => acc & { List.Last(acc) * (1 - pr{1}) + pr{0} }),
+            S_Balances = List.Skip(S_Acc),
+            S_PrevBalances = {0} & List.RemoveLastN(S_Balances, 1),
+            S_Usage = List.Transform(List.Zip({S_PrevBalances, S_Rates}), each _{0} * _{1}),
+
+            Result = Table.FromColumns(
+                Table.ToColumns(Sorted) & {C_Usage, S_Usage},
+                Table.ColumnNames(Sorted) & {"CheckingUsage", "SavingsUsage"}
+            )
+        in
+            Result, type table}}),
+    CombinedUsage = Table.Combine(GroupedUsage[Rows]),
+
+    // Data types
+    ChangedTypes = Table.TransformColumnTypes(CombinedUsage,{
+        {"Month", Int64.Type},
+        {"Total_Inflows", type number},
+        {"Total_Outflows", type number},
+        {"Net_Remaining_For_Savings", type number},
+        {"SavingsTransferRate", type number},
+        {"SavingsTransfers", type number},
+        {"Monthly_Checking", type number},
+        {"Monthly_Savings", type number},
+        {"CheckingUsageRate", type number},
+        {"SavingsUsageRate", type number},
+        {"CheckingUsage", type number},
+        {"SavingsUsage", type number}
+    })
+in
+    ChangedTypes
+

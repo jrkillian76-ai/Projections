@@ -39,7 +39,8 @@ let
                 else if CurrentMonth <= 12 then M6Value + (M12Value - M6Value) * (CurrentMonth - 6) / 6
                 else if CurrentMonth <= 24 then M12Value + (M24Value - M12Value) * (CurrentMonth - 12) / 12
                 else if CurrentMonth <= 36 then M24Value + (M36Value - M24Value) * (CurrentMonth - 24) / 12
-                else M36Value * Number.Power(1 + GrowthRate, CurrentMonth - 36)
+                else if CurrentInputType = "Accounts" then M36Value * Number.Power(1 + GrowthRate, CurrentMonth - 36)
+                else M36Value
         in
             InterpolatedValue
     ),
