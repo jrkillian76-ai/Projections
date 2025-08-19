@@ -1,0 +1,65 @@
+let
+    // Base: accounts context
+    Base = Table.SelectColumns(AccountsTable, {"Month", "ScenarioName", "ScenarioDisplay", "Active_Accounts", "Checking_Accounts", "Savings_Accounts"}),
+
+    // Bring monthly average balances from PartnerFIView
+    JoinedPartner = Table.NestedJoin(Base, {"Month", "ScenarioName"},
+        Table.SelectColumns(PartnerFIView, {"Month", "ScenarioName", "AvgCheckingBalance", "AvgSavingsBalance"}), {"Month", "ScenarioName"},
+        "PartnerData", JoinKind.LeftOuter),
+    ExpandedPartner = Table.ExpandTableColumn(JoinedPartner, "PartnerData", {"AvgCheckingBalance", "AvgSavingsBalance"}, {"AvgCheckingBalance", "AvgSavingsBalance"}),
+
+    // Bring inflow counts and amounts
+    JoinedInflows = Table.NestedJoin(ExpandedPartner, {"Month", "ScenarioName"},
+        Table.SelectColumns(InflowsTable, {"Month", "ScenarioName", "ACHinQuantity", "ACHinAmount", "WireInQuantity", "WireInAmount"}), {"Month", "ScenarioName"},
+        "InflowsData", JoinKind.LeftOuter),
+    ExpandedInflows = Table.ExpandTableColumn(JoinedInflows, "InflowsData", {"ACHinQuantity", "ACHinAmount", "WireInQuantity", "WireInAmount"}, {"ACHinQuantity", "ACHinAmount", "WireInQuantity", "WireInAmount"}),
+
+    // Bring outflow counts and amounts (ACH out, wires out, debit card)
+    JoinedOutflows = Table.NestedJoin(ExpandedInflows, {"Month", "ScenarioName"},
+        Table.SelectColumns(OutflowsTable, {"Month", "ScenarioName", "ACHoutQuantity", "ACHoutAmount", "WireOutQuantity", "WireOutAmount", "DebitCardTransactionsQuantity", "DebitCardTransactionAmount"}), {"Month", "ScenarioName"},
+        "OutflowsData", JoinKind.LeftOuter),
+    ExpandedOutflows = Table.ExpandTableColumn(JoinedOutflows, "OutflowsData", {"ACHoutQuantity", "ACHoutAmount", "WireOutQuantity", "WireOutAmount", "DebitCardTransactionsQuantity", "DebitCardTransactionAmount"}, {"ACHoutQuantity", "ACHoutAmount", "WireOutQuantity", "WireOutAmount", "DebitCardTransactionsQuantity", "DebitCardTransactionAmount"}),
+
+    // Derived per-account balances
+    AddedAvgSavingsPerAccount = Table.AddColumn(ExpandedOutflows, "AvgSavingsBalancePerAccount", each if [Savings_Accounts] > 0 then [AvgSavingsBalance] / [Savings_Accounts] else 0),
+    AddedAvgCheckingPerAccount = Table.AddColumn(AddedAvgSavingsPerAccount, "AvgCheckingBalancePerAccount", each if [Checking_Accounts] > 0 then [AvgCheckingBalance] / [Checking_Accounts] else 0),
+
+    // Derived averages for payments
+    AddedAvgDebitValue = Table.AddColumn(AddedAvgCheckingPerAccount, "AvgDebitCardTransactionValue", each if [DebitCardTransactionsQuantity] > 0 then [DebitCardTransactionAmount] / [DebitCardTransactionsQuantity] else 0),
+    AddedAvgACHCredit = Table.AddColumn(AddedAvgDebitValue, "AvgACHCreditAmount", each if [ACHinQuantity] > 0 then [ACHinAmount] / [ACHinQuantity] else 0),
+    AddedAvgACHDebit = Table.AddColumn(AddedAvgACHCredit, "AvgACHDebitAmount", each if [ACHoutQuantity] > 0 then [ACHoutAmount] / [ACHoutQuantity] else 0),
+    AddedAvgWireIn = Table.AddColumn(AddedAvgACHDebit, "AvgWireInAmount", each if [WireInQuantity] > 0 then [WireInAmount] / [WireInQuantity] else 0),
+    AddedAvgWireOut = Table.AddColumn(AddedAvgWireIn, "AvgWireOutAmount", each if [WireOutQuantity] > 0 then [WireOutAmount] / [WireOutQuantity] else 0),
+
+    // Keep milestone months
+    Filtered = Table.SelectRows(AddedAvgWireOut, each List.Contains({1, 6, 12, 24, 36}, [Month])),
+
+    // Types
+    ChangedTypes = Table.TransformColumnTypes(Filtered,{
+        {"Month", Int64.Type},
+        {"Active_Accounts", type number},
+        {"Checking_Accounts", type number},
+        {"Savings_Accounts", type number},
+        {"AvgSavingsBalance", type number},
+        {"AvgCheckingBalance", type number},
+        {"AvgSavingsBalancePerAccount", type number},
+        {"AvgCheckingBalancePerAccount", type number},
+        {"DebitCardTransactionsQuantity", type number},
+        {"DebitCardTransactionAmount", type number},
+        {"AvgDebitCardTransactionValue", type number},
+        {"ACHinQuantity", type number},
+        {"ACHinAmount", type number},
+        {"AvgACHCreditAmount", type number},
+        {"ACHoutQuantity", type number},
+        {"ACHoutAmount", type number},
+        {"AvgACHDebitAmount", type number},
+        {"WireInQuantity", type number},
+        {"WireInAmount", type number},
+        {"AvgWireInAmount", type number},
+        {"WireOutQuantity", type number},
+        {"WireOutAmount", type number},
+        {"AvgWireOutAmount", type number}
+    })
+in
+    ChangedTypes
+

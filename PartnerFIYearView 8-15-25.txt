@@ -1,0 +1,47 @@
+let
+    // Start from monthly PartnerFIView and add deposits
+    Base = Table.SelectColumns(PartnerFIView, {
+        "Month", "ScenarioName", "ScenarioDisplay",
+        "DebitCardTransactionAmount",
+        "AvgCheckingBalance", "AvgSavingsBalance",
+        "PartnerInterchangeRate", "PartnerInterestRate",
+        "InterchangeRevenue", "CheckingInterestRevenue", "SavingsInterestRevenue"
+    }),
+
+    JoinedInflows = Table.NestedJoin(Base, {"Month", "ScenarioName"},
+        Table.SelectColumns(InflowsTable, {"Month", "ScenarioName", "Total_Inflows"}), {"Month", "ScenarioName"},
+        "InflowsData", JoinKind.LeftOuter),
+    ExpandedInflows = Table.ExpandTableColumn(JoinedInflows, "InflowsData", {"Total_Inflows"}, {"Total_Inflows"}),
+
+    // Derive Year from Month (1-12 => Year 1, 13-24 => Year 2, ...)
+    AddedYear = Table.AddColumn(ExpandedInflows, "Year", each Number.IntegerDivide([Month] - 1, 12) + 1, Int64.Type),
+
+    // Aggregate to yearly metrics per scenario
+    Grouped = Table.Group(AddedYear, {"ScenarioName", "ScenarioDisplay", "Year"}, {
+        {"TotalDeposits", each List.Sum([Total_Inflows]), type number},
+        {"TotalDebitCardTransactionAmount", each List.Sum([DebitCardTransactionAmount]), type number},
+        {"TotalCheckingBalanceForInterest", each List.Sum([AvgCheckingBalance]), type number},
+        {"TotalSavingsBalanceForInterest", each List.Sum([AvgSavingsBalance]), type number},
+        {"AveragePartnerInterchangeRate", each List.Average([PartnerInterchangeRate]), type number},
+        {"AveragePartnerInterestRate", each List.Average([PartnerInterestRate]), type number},
+        {"InterchangeRevenueEstimate", each List.Sum([InterchangeRevenue]), type number},
+        {"InterestRevenueEstimate", each List.Sum([CheckingInterestRevenue]) + List.Sum([SavingsInterestRevenue]), type number}
+    }),
+
+    AddedTotalBalanceForInterest = Table.AddColumn(Grouped, "TotalBalanceForInterest", each [TotalCheckingBalanceForInterest] + [TotalSavingsBalanceForInterest]),
+
+    ChangedTypes = Table.TransformColumnTypes(AddedTotalBalanceForInterest, {
+        {"Year", Int64.Type},
+        {"TotalDeposits", type number},
+        {"TotalDebitCardTransactionAmount", type number},
+        {"TotalCheckingBalanceForInterest", type number},
+        {"TotalSavingsBalanceForInterest", type number},
+        {"TotalBalanceForInterest", type number},
+        {"AveragePartnerInterchangeRate", type number},
+        {"AveragePartnerInterestRate", type number},
+        {"InterchangeRevenueEstimate", type number},
+        {"InterestRevenueEstimate", type number}
+    })
+in
+    ChangedTypes
+
