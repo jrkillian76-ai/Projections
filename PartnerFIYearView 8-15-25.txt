@@ -1,5 +1,13 @@
 let
     // Robust helpers to fetch numeric parameters from GlobalNumericParameters or GlobalTextParameters
+    // without directly referencing those queries (to avoid name resolution errors)
+    TryGetQuery = (queryName as text) as any =>
+        let
+            env = #shared,
+            exists = Record.HasFields(env, queryName),
+            value = if exists then Record.Field(env, queryName) else null
+        in
+            value,
     TryGetWideValue = (tbl as table, names as list) as any =>
         let
             tryRow = try tbl{0} otherwise null,
@@ -23,10 +31,12 @@ let
     GetNumericParameter = (paramName as text, optional altNames as nullable list) as number =>
         let
             names = if altNames = null then {paramName} else List.Distinct({paramName} & altNames),
-            wideNum = try TryGetWideValue(GlobalNumericParameters, names) otherwise null,
-            kvNum = try TryGetKVValue(GlobalNumericParameters, {"ParameterName", "Parameter", "Name", "Key"}, {"Value", "NumericValue", "NumberValue"}, names) otherwise null,
-            wideText = try TryGetWideValue(GlobalTextParameters, names) otherwise null,
-            kvText = try TryGetKVValue(GlobalTextParameters, {"ParameterName", "Parameter", "Name", "Key"}, {"Value", "TextValue"}, names) otherwise null,
+            numericTable = TryGetQuery("GlobalNumericParameters"),
+            textTable = TryGetQuery("GlobalTextParameters"),
+            wideNum = try TryGetWideValue(numericTable, names) otherwise null,
+            kvNum = try TryGetKVValue(numericTable, {"ParameterName", "Parameter", "Name", "Key"}, {"Value", "NumericValue", "NumberValue"}, names) otherwise null,
+            wideText = try TryGetWideValue(textTable, names) otherwise null,
+            kvText = try TryGetKVValue(textTable, {"ParameterName", "Parameter", "Name", "Key"}, {"Value", "TextValue"}, names) otherwise null,
             candidate = List.First(List.RemoveNulls({wideNum, kvNum, wideText, kvText}), null),
             result = try Number.From(candidate) otherwise 0
         in
