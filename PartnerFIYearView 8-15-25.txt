@@ -1,4 +1,19 @@
 let
+    // Helper to fetch numeric parameter from GlobalNumericParameters
+    GetNumericParameter = (paramName as text) as number =>
+        let
+            SingleRowValue = try Record.Field(GlobalNumericParameters{0}, paramName) otherwise null,
+            ColNames = try Table.ColumnNames(GlobalNumericParameters) otherwise {},
+            PossibleKeys = {"ParameterName", "Parameter", "Name", "Key"},
+            PossibleVals = {"Value", "NumericValue", "NumberValue"},
+            KeyCol = List.First(List.RemoveNulls(List.Transform(PossibleKeys, each if List.Contains(ColNames, _) then _ else null)), null),
+            ValCol = List.First(List.RemoveNulls(List.Transform(PossibleVals, each if List.Contains(ColNames, _) then _ else null)), null),
+            FoundRow = try (if KeyCol <> null then Table.SelectRows(GlobalNumericParameters, (r) => Record.Field(r, KeyCol) = paramName){0} else null) otherwise null,
+            KVValue = try (if FoundRow <> null and ValCol <> null then Record.Field(FoundRow, ValCol) else null) otherwise null,
+            Candidate = if SingleRowValue <> null then SingleRowValue else KVValue,
+            Result = try Number.From(Candidate) otherwise 0
+        in
+            Result,
     // Compute monthly average balances from balances (independent of PartnerFIView)
     BalBase = Table.SelectColumns(BalancesTable, {"Month", "ScenarioName", "ScenarioDisplay", "CheckingBalance", "SavingsBalance"}),
     GroupedAverages = Table.Group(BalBase, {"ScenarioName", "ScenarioDisplay"}, {{"Rows", each
@@ -29,9 +44,9 @@ let
         "OutflowsData", JoinKind.LeftOuter),
     ExpandedOutflows = Table.ExpandTableColumn(JoinedOutflows, "OutflowsData", {"DebitCardTransactionAmount"}, {"DebitCardTransactionAmount"}),
 
-    // Partner rates from GlobalNumericPartners (single-row) with safe defaults
-    PartnerInterchangeRateValue = try GlobalNumericPartners{0}[PartnerInterchangeRate] otherwise 0,
-    PartnerInterestRateValue = try GlobalNumericPartners{0}[PartnerInterestRate] otherwise 0,
+    // Partner rates from GlobalNumericParameters with safe defaults
+    PartnerInterchangeRateValue = GetNumericParameter("PartnerInterchangeRate"),
+    PartnerInterestRateValue = GetNumericParameter("PartnerInterestRate"),
     FilledInterest = Table.AddColumn(
         Table.AddColumn(ExpandedOutflows, "PartnerInterchangeRate", each PartnerInterchangeRateValue),
         "PartnerInterestRate", each PartnerInterestRateValue
