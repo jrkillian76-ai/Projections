@@ -1,0 +1,8 @@
+let
+    Source = Excel.Workbook(File.Contents("C:\Users\Jrkil\OneDrive - MBANQ\#Models\#Projections\PlanningModel\Projection_Inputs_v1.0.xlsx"), null, true),
+    GlobalTextVariables_Sheet = Source{[Item="GlobalTextVariables",Kind="Sheet"]}[Data],
+    #"Changed Type" = Table.TransformColumnTypes(GlobalTextVariables_Sheet,{{"Column1", type text}, {"Column2", type text}}),
+    #"Promoted Headers" = Table.PromoteHeaders(#"Changed Type", [PromoteAllScalars=true]),
+    #"Changed Type1" = Table.TransformColumnTypes(#"Promoted Headers",{{"InputType", type text}, {"TextValue", type text}})
+in
+    #"Changed Type1"
