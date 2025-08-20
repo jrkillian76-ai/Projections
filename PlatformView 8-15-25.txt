@@ -28,14 +28,8 @@ let
     ExpandedSGA = Table.ExpandTableColumn(JoinedSGA, "SGAData", {"Value"}, {"PlatformSGA"}),
     FilledSGA = Table.ReplaceValue(ExpandedSGA, null, 0, Replacer.ReplaceValue, {"PlatformSGA"}),
 
-    // Get Active_Accounts for per-active fees
-    JoinedActive = Table.NestedJoin(FilledSGA, {"Month", "ScenarioName"},
-        Table.SelectColumns(AccountsTable, {"Month", "ScenarioName", "Active_Accounts"}), {"Month", "ScenarioName"},
-        "ActiveData", JoinKind.LeftOuter),
-    ExpandedActive = Table.ExpandTableColumn(JoinedActive, "ActiveData", {"Active_Accounts"}, {"Active_Accounts"}),
-
     // Bring DebitCardTransactionAmount as interchange base
-    JoinedDebit = Table.NestedJoin(ExpandedActive, {"Month", "ScenarioName"},
+    JoinedDebit = Table.NestedJoin(FilledSGA, {"Month", "ScenarioName"},
         Table.SelectColumns(OutflowsTable, {"Month", "ScenarioName", "DebitCardTransactionAmount"}), {"Month", "ScenarioName"},
         "DebitOut", JoinKind.LeftOuter),
     ExpandedDebit = Table.ExpandTableColumn(JoinedDebit, "DebitOut", {"DebitCardTransactionAmount"}, {"DebitCardTransactionAmount"}),
