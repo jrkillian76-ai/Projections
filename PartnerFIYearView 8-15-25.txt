@@ -1,23 +1,57 @@
 let
-    // Start from monthly PartnerFIView and add deposits
-    Base = Table.SelectColumns(PartnerFIView, {
-        "Month", "ScenarioName", "ScenarioDisplay",
-        "DebitCardTransactionAmount",
-        "AvgCheckingBalance", "AvgSavingsBalance",
-        "PartnerInterchangeRate", "PartnerInterestRate",
-        "InterchangeRevenue", "CheckingInterestRevenue", "SavingsInterestRevenue"
-    }),
+    // Compute monthly average balances from balances (independent of PartnerFIView)
+    BalBase = Table.SelectColumns(BalancesTable, {"Month", "ScenarioName", "ScenarioDisplay", "CheckingBalance", "SavingsBalance"}),
+    GroupedAverages = Table.Group(BalBase, {"ScenarioName", "ScenarioDisplay"}, {{"Rows", each
+        let
+            Sorted = Table.Sort(_, {{"Month", Order.Ascending}}),
+            C_Bal = Table.Column(Sorted, "CheckingBalance"),
+            C_Prev = {0} & List.RemoveLastN(C_Bal, 1),
+            AvgChecking = List.Transform(List.Zip({C_Prev, C_Bal}), each (_{0} + _{1}) / 2),
+            S_Bal = Table.Column(Sorted, "SavingsBalance"),
+            S_Prev = {0} & List.RemoveLastN(S_Bal, 1),
+            AvgSavings = List.Transform(List.Zip({S_Prev, S_Bal}), each (_{0} + _{1}) / 2),
+            Result = Table.FromColumns(
+                Table.ToColumns(Sorted) & {AvgChecking, AvgSavings},
+                Table.ColumnNames(Sorted) & {"AvgCheckingBalance", "AvgSavingsBalance"}
+            )
+        in
+            Result, type table}}),
+    WithAverages = Table.Combine(GroupedAverages[Rows]),
 
-    JoinedInflows = Table.NestedJoin(Base, {"Month", "ScenarioName"},
+    // Add total deposits and debit card transaction amount from inflows/outflows
+    JoinedInflows = Table.NestedJoin(WithAverages, {"Month", "ScenarioName"},
         Table.SelectColumns(InflowsTable, {"Month", "ScenarioName", "Total_Inflows"}), {"Month", "ScenarioName"},
         "InflowsData", JoinKind.LeftOuter),
     ExpandedInflows = Table.ExpandTableColumn(JoinedInflows, "InflowsData", {"Total_Inflows"}, {"Total_Inflows"}),
 
-    // Derive Year from Month (1-12 => Year 1, 13-24 => Year 2, ...)
-    AddedYear = Table.AddColumn(ExpandedInflows, "Year", each Number.IntegerDivide([Month] - 1, 12) + 1, Int64.Type),
+    JoinedOutflows = Table.NestedJoin(ExpandedInflows, {"Month", "ScenarioName"},
+        Table.SelectColumns(OutflowsTable, {"Month", "ScenarioName", "DebitCardTransactionAmount"}), {"Month", "ScenarioName"},
+        "OutflowsData", JoinKind.LeftOuter),
+    ExpandedOutflows = Table.ExpandTableColumn(JoinedOutflows, "OutflowsData", {"DebitCardTransactionAmount"}, {"DebitCardTransactionAmount"}),
 
-    // Aggregate to yearly metrics per scenario
-    Grouped = Table.Group(AddedYear, {"ScenarioName", "ScenarioDisplay", "Year"}, {
+    // Partner rates from inputs (with safe defaults)
+    JoinedInterchangeRate = Table.NestedJoin(ExpandedOutflows, {"Month"},
+        Table.SelectRows(InterpolatedInputs, each [InputType] = "PartnerInterchangeRate"), {"Month"},
+        "PartnerInterchangeRateData", JoinKind.LeftOuter),
+    ExpandedInterchangeRate = Table.ExpandTableColumn(JoinedInterchangeRate, "PartnerInterchangeRateData", {"Value"}, {"PartnerInterchangeRate"}),
+    FilledInterchange = Table.ReplaceValue(ExpandedInterchangeRate, null, 0, Replacer.ReplaceValue, {"PartnerInterchangeRate"}),
+
+    JoinedInterestRate = Table.NestedJoin(FilledInterchange, {"Month"},
+        Table.SelectRows(InterpolatedInputs, each [InputType] = "PartnerInterestRate"), {"Month"},
+        "PartnerInterestRateData", JoinKind.LeftOuter),
+    ExpandedInterestRate = Table.ExpandTableColumn(JoinedInterestRate, "PartnerInterestRateData", {"Value"}, {"PartnerInterestRate"}),
+    FilledInterest = Table.ReplaceValue(ExpandedInterestRate, null, 0, Replacer.ReplaceValue, {"PartnerInterestRate"}),
+
+    // Compute monthly revenue components
+    AddedInterchangeRevenue = Table.AddColumn(FilledInterest, "InterchangeRevenue", each [DebitCardTransactionAmount] * [PartnerInterchangeRate]),
+    AddedCheckingInterestRevenue = Table.AddColumn(AddedInterchangeRevenue, "CheckingInterestRevenue", each [AvgCheckingBalance] * [PartnerInterestRate]),
+    AddedSavingsInterestRevenue = Table.AddColumn(AddedCheckingInterestRevenue, "SavingsInterestRevenue", each [AvgSavingsBalance] * [PartnerInterestRate]),
+
+    // Derive Year from Month
+    AddedYear = Table.AddColumn(AddedSavingsInterestRevenue, "Year", each Number.IntegerDivide([Month] - 1, 12) + 1, Int64.Type),
+
+    // Aggregate yearly metrics per scenario
+    GroupedYear = Table.Group(AddedYear, {"ScenarioName", "ScenarioDisplay", "Year"}, {
         {"TotalDeposits", each List.Sum([Total_Inflows]), type number},
         {"TotalDebitCardTransactionAmount", each List.Sum([DebitCardTransactionAmount]), type number},
         {"TotalCheckingBalanceForInterest", each List.Sum([AvgCheckingBalance]), type number},
@@ -28,7 +62,7 @@ let
         {"InterestRevenueEstimate", each List.Sum([CheckingInterestRevenue]) + List.Sum([SavingsInterestRevenue]), type number}
     }),
 
-    AddedTotalBalanceForInterest = Table.AddColumn(Grouped, "TotalBalanceForInterest", each [TotalCheckingBalanceForInterest] + [TotalSavingsBalanceForInterest]),
+    AddedTotalBalanceForInterest = Table.AddColumn(GroupedYear, "TotalBalanceForInterest", each [TotalCheckingBalanceForInterest] + [TotalSavingsBalanceForInterest]),
 
     ChangedTypes = Table.TransformColumnTypes(AddedTotalBalanceForInterest, {
         {"Year", Int64.Type},
