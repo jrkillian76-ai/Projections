@@ -29,18 +29,13 @@ let
         "OutflowsData", JoinKind.LeftOuter),
     ExpandedOutflows = Table.ExpandTableColumn(JoinedOutflows, "OutflowsData", {"DebitCardTransactionAmount"}, {"DebitCardTransactionAmount"}),
 
-    // Partner rates from inputs (with safe defaults)
-    JoinedInterchangeRate = Table.NestedJoin(ExpandedOutflows, {"Month"},
-        Table.SelectRows(InterpolatedInputs, each [InputType] = "PartnerInterchangeRate"), {"Month"},
-        "PartnerInterchangeRateData", JoinKind.LeftOuter),
-    ExpandedInterchangeRate = Table.ExpandTableColumn(JoinedInterchangeRate, "PartnerInterchangeRateData", {"Value"}, {"PartnerInterchangeRate"}),
-    FilledInterchange = Table.ReplaceValue(ExpandedInterchangeRate, null, 0, Replacer.ReplaceValue, {"PartnerInterchangeRate"}),
-
-    JoinedInterestRate = Table.NestedJoin(FilledInterchange, {"Month"},
-        Table.SelectRows(InterpolatedInputs, each [InputType] = "PartnerInterestRate"), {"Month"},
-        "PartnerInterestRateData", JoinKind.LeftOuter),
-    ExpandedInterestRate = Table.ExpandTableColumn(JoinedInterestRate, "PartnerInterestRateData", {"Value"}, {"PartnerInterestRate"}),
-    FilledInterest = Table.ReplaceValue(ExpandedInterestRate, null, 0, Replacer.ReplaceValue, {"PartnerInterestRate"}),
+    // Partner rates from GlobalNumericPartners (single-row) with safe defaults
+    PartnerInterchangeRateValue = try GlobalNumericPartners{0}[PartnerInterchangeRate] otherwise 0,
+    PartnerInterestRateValue = try GlobalNumericPartners{0}[PartnerInterestRate] otherwise 0,
+    FilledInterest = Table.AddColumn(
+        Table.AddColumn(ExpandedOutflows, "PartnerInterchangeRate", each PartnerInterchangeRateValue),
+        "PartnerInterestRate", each PartnerInterestRateValue
+    ),
 
     // Compute monthly revenue components
     AddedInterchangeRevenue = Table.AddColumn(FilledInterest, "InterchangeRevenue", each [DebitCardTransactionAmount] * [PartnerInterchangeRate]),
