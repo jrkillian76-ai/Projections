@@ -1,47 +1,17 @@
 let
-    // Robust helpers to fetch numeric parameters from GlobalNumericParameters or GlobalTextParameters
-    // without directly referencing those queries (to avoid name resolution errors)
-    TryGetQuery = (queryName as text) as any =>
+    // Parameter lookup using provided schema
+    // GlobalNumericParameters: columns [InputType], [Value]
+    // GlobalTextParameters: columns [InputType], [TextValue]
+    GetNumericParameter = (paramName as text) as number =>
         let
-            env = #shared,
-            exists = Record.HasFields(env, queryName),
-            value = if exists then Record.Field(env, queryName) else null
-        in
-            value,
-    TryGetWideValue = (tbl as table, names as list) as any =>
-        let
-            tryRow = try tbl{0} otherwise null,
-            value = if tryRow = null then null else List.First(List.RemoveNulls(List.Transform(names, (n) => try Record.Field(tryRow, n) otherwise null)), null)
-        in
-            value,
-    TryGetKVValue = (tbl as table, keyNames as list, valNames as list, paramNames as list) as any =>
-        let
-            cols = try Table.ColumnNames(tbl) otherwise {},
-            keyCol = List.First(List.RemoveNulls(List.Transform(keyNames, (n) => if List.Contains(cols, n) then n else null)), null),
-            valCol = List.First(List.RemoveNulls(List.Transform(valNames, (n) => if List.Contains(cols, n) then n else null)), null),
-            found = if keyCol <> null and valCol <> null then
-                let
-                    lowered = Table.TransformColumns(tbl, {{keyCol, each Text.Lower(Text.From(_)), type text}}),
-                    target = List.Transform(paramNames, each Text.Lower(_)),
-                    row = try Table.SelectRows(lowered, each List.Contains(target, Record.Field(_, keyCol))){0} otherwise null
-                in row else null,
-            value = try (if found <> null then Record.Field(found, valCol) else null) otherwise null
-        in
-            value,
-    GetNumericParameter = (paramName as text, optional altNames as nullable list) as number =>
-        let
-            names = if altNames = null then {paramName} else List.Distinct({paramName} & altNames),
-            numericTable = TryGetQuery("GlobalNumericParameters"),
-            textTable = TryGetQuery("GlobalTextParameters"),
-            // Try numeric table (wide)
-            wideNum = try TryGetWideValue(numericTable, names) otherwise null,
-            // Try numeric table (KV)
-            kvNum = try TryGetKVValue(numericTable, {"ParameterName", "Parameter", "Name", "Key"}, {"Value", "NumericValue", "NumberValue"}, names) otherwise null,
-            // Try text table fallbacks
-            wideText = try TryGetWideValue(textTable, names) otherwise null,
-            kvText = try TryGetKVValue(textTable, {"ParameterName", "Parameter", "Name", "Key"}, {"Value", "TextValue"}, names) otherwise null,
-            candidate = List.First(List.RemoveNulls({wideNum, kvNum, wideText, kvText}), null),
-            result = try Number.From(candidate) otherwise 0
+            numTable = try GlobalNumericParameters otherwise null,
+            txtTable = try GlobalTextParameters otherwise null,
+            p = Text.Lower(paramName),
+            numRow = try if numTable <> null then Table.SelectRows(numTable, each Text.Lower([InputType]) = p){0} else null otherwise null,
+            numVal = try if numRow <> null then Number.From(numRow[Value]) else null otherwise null,
+            txtRow = try if (numVal = null and txtTable <> null) then Table.SelectRows(txtTable, each Text.Lower([InputType]) = p){0} else null otherwise null,
+            txtVal = try if txtRow <> null then Number.From(txtRow[TextValue]) else null otherwise null,
+            result = if numVal <> null then numVal else (if txtVal <> null then txtVal else 0)
         in
             result,
 
@@ -55,8 +25,8 @@ let
     ExpandedDebit = Table.ExpandTableColumn(JoinedDebitSpend, "DebitData", {"DebitCardTransactionAmount"}, {"DebitCardTransactionAmount"}),
 
     // Partner rates from GlobalNumericParameters with safe defaults
-    PartnerInterchangeRateValue = GetNumericParameter("PartnerInterchangeRate", {"Partner Interchange Rate", "InterchangeRate", "Interchange Rate"}),
-    PartnerInterestRateValue = GetNumericParameter("PartnerInterestRate", {"Partner Interest Rate", "InterestRate", "Interest Rate"}),
+    PartnerInterchangeRateValue = GetNumericParameter("PartnerInterchangeRate"),
+    PartnerInterestRateValue = GetNumericParameter("PartnerInterestRate"),
     WithRates = Table.AddColumn(
         Table.AddColumn(ExpandedDebit, "PartnerInterchangeRate", each PartnerInterchangeRateValue),
         "PartnerInterestRate", each PartnerInterestRateValue
