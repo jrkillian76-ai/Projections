@@ -1,39 +1,35 @@
 let
-    // Base from balances and calcs
-    Base = Table.NestedJoin(BalancesTable, {"Month", "ScenarioName"},
-        Table.SelectColumns(CalcsTable, {"Month", "ScenarioName", "Monthly_Checking", "Monthly_Savings"}), {"Month", "ScenarioName"},
-        "Calcs", JoinKind.LeftOuter),
-    Expanded = Table.ExpandTableColumn(Base, "Calcs", {"Monthly_Checking", "Monthly_Savings"}, {"Monthly_Checking", "Monthly_Savings"}),
+    // Base from balances only (already includes Monthly_Checking and Monthly_Savings)
+    Expanded = BalancesTable,
 
     // Inputs for Platform fees, membership, interchange share, SG&A
     JoinedPlatformInterchangeRate = Table.NestedJoin(Expanded, {"Month"},
         Table.SelectRows(InterpolatedInputs, each [InputType] = "PlatformInterchangeRate"), {"Month"},
         "PlatformInterchangeRateData", JoinKind.LeftOuter),
     ExpandedPlatformInterchangeRate = Table.ExpandTableColumn(JoinedPlatformInterchangeRate, "PlatformInterchangeRateData", {"Value"}, {"PlatformInterchangeRate"}),
+    // Default missing platform interchange rate to 0
+    FilledInterchange = Table.ReplaceValue(ExpandedPlatformInterchangeRate, null, 0, Replacer.ReplaceValue, {"PlatformInterchangeRate"}),
 
-    JoinedMembershipFee = Table.NestedJoin(ExpandedPlatformInterchangeRate, {"Month"},
+    JoinedMembershipFee = Table.NestedJoin(FilledInterchange, {"Month"},
         Table.SelectRows(InterpolatedInputs, each [InputType] = "MembershipFeePerActive"), {"Month"},
         "MembershipFeeData", JoinKind.LeftOuter),
     ExpandedMembershipFee = Table.ExpandTableColumn(JoinedMembershipFee, "MembershipFeeData", {"Value"}, {"MembershipFeePerActive"}),
+    FilledMembership = Table.ReplaceValue(ExpandedMembershipFee, null, 0, Replacer.ReplaceValue, {"MembershipFeePerActive"}),
 
-    JoinedOtherFees = Table.NestedJoin(ExpandedMembershipFee, {"Month"},
+    JoinedOtherFees = Table.NestedJoin(FilledMembership, {"Month"},
         Table.SelectRows(InterpolatedInputs, each [InputType] = "OtherFeesPerActive"), {"Month"},
         "OtherFeesData", JoinKind.LeftOuter),
     ExpandedOtherFees = Table.ExpandTableColumn(JoinedOtherFees, "OtherFeesData", {"Value"}, {"OtherFeesPerActive"}),
+    FilledOtherFees = Table.ReplaceValue(ExpandedOtherFees, null, 0, Replacer.ReplaceValue, {"OtherFeesPerActive"}),
 
-    JoinedSGA = Table.NestedJoin(ExpandedOtherFees, {"Month"},
+    JoinedSGA = Table.NestedJoin(FilledOtherFees, {"Month"},
         Table.SelectRows(InterpolatedInputs, each [InputType] = "PlatformSGA"), {"Month"},
         "SGAData", JoinKind.LeftOuter),
     ExpandedSGA = Table.ExpandTableColumn(JoinedSGA, "SGAData", {"Value"}, {"PlatformSGA"}),
-
-    // Get Active_Accounts for per-active fees
-    JoinedActive = Table.NestedJoin(ExpandedSGA, {"Month", "ScenarioName"},
-        Table.SelectColumns(AccountsTable, {"Month", "ScenarioName", "Active_Accounts"}), {"Month", "ScenarioName"},
-        "ActiveData", JoinKind.LeftOuter),
-    ExpandedActive = Table.ExpandTableColumn(JoinedActive, "ActiveData", {"Active_Accounts"}, {"Active_Accounts"}),
+    FilledSGA = Table.ReplaceValue(ExpandedSGA, null, 0, Replacer.ReplaceValue, {"PlatformSGA"}),
 
     // Bring DebitCardTransactionAmount as interchange base
-    JoinedDebit = Table.NestedJoin(ExpandedActive, {"Month", "ScenarioName"},
+    JoinedDebit = Table.NestedJoin(FilledSGA, {"Month", "ScenarioName"},
         Table.SelectColumns(OutflowsTable, {"Month", "ScenarioName", "DebitCardTransactionAmount"}), {"Month", "ScenarioName"},
         "DebitOut", JoinKind.LeftOuter),
     ExpandedDebit = Table.ExpandTableColumn(JoinedDebit, "DebitOut", {"DebitCardTransactionAmount"}, {"DebitCardTransactionAmount"}),

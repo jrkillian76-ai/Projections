@@ -1,4 +1,20 @@
 let
+    // Parameter lookup using provided schema
+    // GlobalNumericParameters: columns [InputType], [Value]
+    // GlobalTextParameters: columns [InputType], [TextValue]
+    GetNumericParameter = (paramName as text) as number =>
+        let
+            numTable = try GlobalNumericParameters otherwise null,
+            txtTable = try GlobalTextParameters otherwise null,
+            p = Text.Lower(paramName),
+            numRow = try if numTable <> null then Table.SelectRows(numTable, each Text.Lower([InputType]) = p){0} else null otherwise null,
+            numVal = try if numRow <> null then Number.From(numRow[Value]) else null otherwise null,
+            txtRow = try if (numVal = null and txtTable <> null) then Table.SelectRows(txtTable, each Text.Lower([InputType]) = p){0} else null otherwise null,
+            txtVal = try if txtRow <> null then Number.From(txtRow[TextValue]) else null otherwise null,
+            result = if numVal <> null then numVal else (if txtVal <> null then txtVal else 0)
+        in
+            result,
+
     // Base from balances to leverage balances and scenario context
     Base = Table.SelectColumns(BalancesTable, {"Month", "ScenarioName", "ScenarioDisplay", "CheckingBalance", "SavingsBalance"}),
 
@@ -8,22 +24,16 @@ let
         "DebitData", JoinKind.LeftOuter),
     ExpandedDebit = Table.ExpandTableColumn(JoinedDebitSpend, "DebitData", {"DebitCardTransactionAmount"}, {"DebitCardTransactionAmount"}),
 
-    // Partner rates from inputs
-    JoinedInterchangeRate = Table.NestedJoin(ExpandedDebit, {"Month"},
-        Table.SelectRows(InterpolatedInputs, each [InputType] = "PartnerInterchangeRate"), {"Month"},
-        "PartnerInterchangeRateData", JoinKind.LeftOuter),
-    ExpandedInterchangeRate = Table.ExpandTableColumn(JoinedInterchangeRate, "PartnerInterchangeRateData", {"Value"}, {"PartnerInterchangeRate"}),
-
-    JoinedInterestRate = Table.NestedJoin(ExpandedInterchangeRate, {"Month"},
-        Table.SelectRows(InterpolatedInputs, each [InputType] = "PartnerInterestRate"), {"Month"},
-        "PartnerInterestRateData", JoinKind.LeftOuter),
-    ExpandedInterestRate = Table.ExpandTableColumn(JoinedInterestRate, "PartnerInterestRateData", {"Value"}, {"PartnerInterestRate"}),
-
-    // Replace null rate values with 0 to avoid null math
-    FilledRates = Table.ReplaceValue(ExpandedInterestRate, null, 0, Replacer.ReplaceValue, {"PartnerInterchangeRate", "PartnerInterestRate"}),
+    // Partner rates from GlobalNumericParameters with safe defaults
+    PartnerInterchangeRateValue = GetNumericParameter("PartnerInterchange"),
+    PartnerInterestRateValue = GetNumericParameter("PartnerInterest"),
+    WithRates = Table.AddColumn(
+        Table.AddColumn(ExpandedDebit, "PartnerInterchangeRate", each PartnerInterchangeRateValue),
+        "PartnerInterestRate", each PartnerInterestRateValue
+    ),
 
     // Compute average balances with prior month per scenario
-    Grouped = Table.Group(FilledRates, {"ScenarioName", "ScenarioDisplay"}, {{"Rows", each
+    Grouped = Table.Group(WithRates, {"ScenarioName", "ScenarioDisplay"}, {{"Rows", each
         let
             Sorted = Table.Sort(_, {{"Month", Order.Ascending}}),
 
