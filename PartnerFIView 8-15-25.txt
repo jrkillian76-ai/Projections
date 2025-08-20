@@ -25,8 +25,8 @@ let
     ExpandedDebit = Table.ExpandTableColumn(JoinedDebitSpend, "DebitData", {"DebitCardTransactionAmount"}, {"DebitCardTransactionAmount"}),
 
     // Partner rates from GlobalNumericParameters with safe defaults
-    PartnerInterchangeRateValue = GetNumericParameter("PartnerInterchangeRate"),
-    PartnerInterestRateValue = GetNumericParameter("PartnerInterestRate"),
+    PartnerInterchangeRateValue = GetNumericParameter("PartnerInterchange"),
+    PartnerInterestRateValue = GetNumericParameter("PartnerInterest"),
     WithRates = Table.AddColumn(
         Table.AddColumn(ExpandedDebit, "PartnerInterchangeRate", each PartnerInterchangeRateValue),
         "PartnerInterestRate", each PartnerInterestRateValue

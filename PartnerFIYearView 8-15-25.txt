@@ -45,8 +45,8 @@ let
     ExpandedOutflows = Table.ExpandTableColumn(JoinedOutflows, "OutflowsData", {"DebitCardTransactionAmount"}, {"DebitCardTransactionAmount"}),
 
     // Partner rates from GlobalNumericParameters with safe defaults
-    PartnerInterchangeRateValue = GetNumericParameter("PartnerInterchangeRate"),
-    PartnerInterestRateValue = GetNumericParameter("PartnerInterestRate"),
+    PartnerInterchangeRateValue = GetNumericParameter("PartnerInterchange"),
+    PartnerInterestRateValue = GetNumericParameter("PartnerInterest"),
     FilledInterest = Table.AddColumn(
         Table.AddColumn(ExpandedOutflows, "PartnerInterchangeRate", each PartnerInterchangeRateValue),
         "PartnerInterestRate", each PartnerInterestRateValue
