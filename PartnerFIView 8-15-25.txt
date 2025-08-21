@@ -8,14 +8,14 @@ let
         "DebitData", JoinKind.LeftOuter),
     ExpandedDebit = Table.ExpandTableColumn(JoinedDebitSpend, "DebitData", {"DebitCardTransactionAmount"}, {"DebitCardTransactionAmount"}),
 
-    // Partner rates from inputs
-    JoinedInterchangeRate = Table.NestedJoin(ExpandedDebit, {"Month"},
-        Table.SelectRows(InterpolatedInputs, each [InputType] = "PartnerInterchangeRate"), {"Month"},
+    // Partner rates from global numeric parameters (not interpolated)
+    JoinedInterchangeRate = Table.NestedJoin(ExpandedDebit, {},
+        Table.SelectRows(GlobalNumericValues, each [InputType] = "PartnerInterchange"), {},
         "PartnerInterchangeRateData", JoinKind.LeftOuter),
     ExpandedInterchangeRate = Table.ExpandTableColumn(JoinedInterchangeRate, "PartnerInterchangeRateData", {"Value"}, {"PartnerInterchangeRate"}),
 
-    JoinedInterestRate = Table.NestedJoin(ExpandedInterchangeRate, {"Month"},
-        Table.SelectRows(InterpolatedInputs, each [InputType] = "PartnerInterestRate"), {"Month"},
+    JoinedInterestRate = Table.NestedJoin(ExpandedInterchangeRate, {},
+        Table.SelectRows(GlobalNumericValues, each [InputType] = "PartnerInterest"), {},
         "PartnerInterestRateData", JoinKind.LeftOuter),
     ExpandedInterestRate = Table.ExpandTableColumn(JoinedInterestRate, "PartnerInterestRateData", {"Value"}, {"PartnerInterestRate"}),
 
