@@ -32,8 +32,14 @@ let
         "ActiveData", JoinKind.LeftOuter),
     ExpandedActive = Table.ExpandTableColumn(JoinedActive, "ActiveData", {"Active_Accounts"}, {"Active_Accounts"}),
 
+    // Join average balances computed earlier to decouple from PartnerFI views
+    JoinedAverages = Table.NestedJoin(ExpandedActive, {"Month", "ScenarioName"},
+        Table.SelectColumns(AverageBalances, {"Month", "ScenarioName", "AvgCheckingBalance", "AvgSavingsBalance"}), {"Month", "ScenarioName"},
+        "AvgData", JoinKind.LeftOuter),
+    ExpandedAverages = Table.ExpandTableColumn(JoinedAverages, "AvgData", {"AvgCheckingBalance", "AvgSavingsBalance"}, {"AvgCheckingBalance", "AvgSavingsBalance"}),
+
     // Bring DebitCardTransactionAmount as interchange base
-    JoinedDebit = Table.NestedJoin(ExpandedActive, {"Month", "ScenarioName"},
+    JoinedDebit = Table.NestedJoin(ExpandedAverages, {"Month", "ScenarioName"},
         Table.SelectColumns(OutflowsTable, {"Month", "ScenarioName", "DebitCardTransactionAmount"}), {"Month", "ScenarioName"},
         "DebitOut", JoinKind.LeftOuter),
     ExpandedDebit = Table.ExpandTableColumn(JoinedDebit, "DebitOut", {"DebitCardTransactionAmount"}, {"DebitCardTransactionAmount"}),
@@ -71,6 +77,8 @@ let
         {"PlatformSGA", type number},
         {"Active_Accounts", type number},
         {"DebitCardTransactionAmount", type number},
+        {"AvgCheckingBalance", type number},
+        {"AvgSavingsBalance", type number},
         {"MembershipRevenue", type number},
         {"OtherFeeRevenue", type number},
         {"InterchangeRevenue", type number},
