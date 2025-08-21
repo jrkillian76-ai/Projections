@@ -1,9 +1,7 @@
 let
-    // Base from balances and calcs
-    Base = Table.NestedJoin(BalancesTable, {"Month", "ScenarioName"},
-        Table.SelectColumns(CalcsTable, {"Month", "ScenarioName", "Monthly_Checking", "Monthly_Savings"}), {"Month", "ScenarioName"},
-        "Calcs", JoinKind.LeftOuter),
-    Expanded = Table.ExpandTableColumn(Base, "Calcs", {"Monthly_Checking", "Monthly_Savings"}, {"Monthly_Checking", "Monthly_Savings"}),
+    // Base already contains Monthly_Checking and Monthly_Savings via BalancesTable
+    Base = BalancesTable,
+    Expanded = Base,
 
     // Inputs for Platform fees, membership, interchange share, SG&A
     JoinedPlatformInterchangeRate = Table.NestedJoin(Expanded, {"Month"},
