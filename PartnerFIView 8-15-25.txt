@@ -10,12 +10,12 @@ let
 
     // Partner rates from global numeric parameters (not interpolated)
     JoinedInterchangeRate = Table.NestedJoin(ExpandedDebit, {},
-        Table.SelectRows(GlobalNumericValues, each [InputType] = "PartnerInterchange"), {},
+        Table.SelectRows(GlobalNumericParameters, each [InputType] = "PartnerInterchange"), {},
         "PartnerInterchangeRateData", JoinKind.LeftOuter),
     ExpandedInterchangeRate = Table.ExpandTableColumn(JoinedInterchangeRate, "PartnerInterchangeRateData", {"Value"}, {"PartnerInterchangeRate"}),
 
     JoinedInterestRate = Table.NestedJoin(ExpandedInterchangeRate, {},
-        Table.SelectRows(GlobalNumericValues, each [InputType] = "PartnerInterest"), {},
+        Table.SelectRows(GlobalNumericParameters, each [InputType] = "PartnerInterest"), {},
         "PartnerInterestRateData", JoinKind.LeftOuter),
     ExpandedInterestRate = Table.ExpandTableColumn(JoinedInterestRate, "PartnerInterestRateData", {"Value"}, {"PartnerInterestRate"}),
 
