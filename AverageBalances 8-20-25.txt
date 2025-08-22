@@ -1,0 +1,34 @@
+let
+    Base = Table.SelectColumns(BalancesTable, {"Month", "ScenarioName", "ScenarioDisplay", "CheckingBalance", "SavingsBalance"}),
+
+    Grouped = Table.Group(Base, {"ScenarioName", "ScenarioDisplay"}, {{"Rows", each
+        let
+            Sorted = Table.Sort(_, {{"Month", Order.Ascending}}),
+
+            C_Bal = Table.Column(Sorted, "CheckingBalance"),
+            C_Prev = {0} & List.RemoveLastN(C_Bal, 1),
+            AvgChecking = List.Transform(List.Zip({C_Prev, C_Bal}), each ( _{0} + _{1}) / 2),
+
+            S_Bal = Table.Column(Sorted, "SavingsBalance"),
+            S_Prev = {0} & List.RemoveLastN(S_Bal, 1),
+            AvgSavings = List.Transform(List.Zip({S_Prev, S_Bal}), each ( _{0} + _{1}) / 2),
+
+            Result = Table.FromColumns(
+                Table.ToColumns(Sorted) & {AvgChecking, AvgSavings},
+                Table.ColumnNames(Sorted) & {"AvgCheckingBalance", "AvgSavingsBalance"}
+            )
+        in
+            Result, type table}}),
+
+    Combined = Table.Combine(Grouped[Rows]),
+    ChangedTypes = Table.TransformColumnTypes(Combined, {
+        {"Month", Int64.Type},
+        {"CheckingBalance", type number},
+        {"SavingsBalance", type number},
+        {"AvgCheckingBalance", type number},
+        {"AvgSavingsBalance", type number}
+    })
+in
+    ChangedTypes
+
+ 

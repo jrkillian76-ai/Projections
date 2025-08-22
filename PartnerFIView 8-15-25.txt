@@ -8,54 +8,45 @@ let
         "DebitData", JoinKind.LeftOuter),
     ExpandedDebit = Table.ExpandTableColumn(JoinedDebitSpend, "DebitData", {"DebitCardTransactionAmount"}, {"DebitCardTransactionAmount"}),
 
-    // Partner rates from inputs
-    JoinedInterchangeRate = Table.NestedJoin(ExpandedDebit, {"Month"},
-        Table.SelectRows(InterpolatedInputs, each [InputType] = "PartnerInterchangeRate"), {"Month"},
+    // Partner rates from global numeric parameters (not interpolated)
+    JoinedInterchangeRate = Table.NestedJoin(ExpandedDebit, {},
+        Table.SelectRows(GlobalNumericParameters, each [InputType] = "PartnerInterchange"), {},
         "PartnerInterchangeRateData", JoinKind.LeftOuter),
     ExpandedInterchangeRate = Table.ExpandTableColumn(JoinedInterchangeRate, "PartnerInterchangeRateData", {"Value"}, {"PartnerInterchangeRate"}),
 
-    JoinedInterestRate = Table.NestedJoin(ExpandedInterchangeRate, {"Month"},
-        Table.SelectRows(InterpolatedInputs, each [InputType] = "PartnerInterestRate"), {"Month"},
+    JoinedInterestRate = Table.NestedJoin(ExpandedInterchangeRate, {},
+        Table.SelectRows(GlobalNumericParameters, each [InputType] = "PartnerInterest"), {},
         "PartnerInterestRateData", JoinKind.LeftOuter),
     ExpandedInterestRate = Table.ExpandTableColumn(JoinedInterestRate, "PartnerInterestRateData", {"Value"}, {"PartnerInterestRate"}),
 
     // Replace null rate values with 0 to avoid null math
     FilledRates = Table.ReplaceValue(ExpandedInterestRate, null, 0, Replacer.ReplaceValue, {"PartnerInterchangeRate", "PartnerInterestRate"}),
 
-    // Compute average balances with prior month per scenario
-    Grouped = Table.Group(FilledRates, {"ScenarioName", "ScenarioDisplay"}, {{"Rows", each
-        let
-            Sorted = Table.Sort(_, {{"Month", Order.Ascending}}),
-
-            C_Bal = Table.Column(Sorted, "CheckingBalance"),
-            C_Prev = {0} & List.RemoveLastN(C_Bal, 1),
-            AvgChecking = List.Transform(List.Zip({C_Prev, C_Bal}), each ( _{0} + _{1}) / 2),
-
-            S_Bal = Table.Column(Sorted, "SavingsBalance"),
-            S_Prev = {0} & List.RemoveLastN(S_Bal, 1),
-            AvgSavings = List.Transform(List.Zip({S_Prev, S_Bal}), each ( _{0} + _{1}) / 2),
-
-            Result = Table.FromColumns(
-                Table.ToColumns(Sorted) & {AvgChecking, AvgSavings},
-                Table.ColumnNames(Sorted) & {"AvgCheckingBalance", "AvgSavingsBalance"}
-            )
-        in
-            Result, type table}}),
-    WithAverages = Table.Combine(Grouped[Rows]),
+    // Join precomputed average balances
+    JoinedAverages = Table.NestedJoin(FilledRates, {"Month", "ScenarioName"},
+        Table.SelectColumns(AverageBalances, {"Month", "ScenarioName", "AvgCheckingBalance", "AvgSavingsBalance"}), {"Month", "ScenarioName"},
+        "AvgData", JoinKind.LeftOuter),
+    WithAverages = Table.ExpandTableColumn(JoinedAverages, "AvgData", {"AvgCheckingBalance", "AvgSavingsBalance"}, {"AvgCheckingBalance", "AvgSavingsBalance"}),
 
     // Calculations
     AddedInterchange = Table.AddColumn(WithAverages, "InterchangeRevenue", each
         [DebitCardTransactionAmount] * [PartnerInterchangeRate]
     ),
     AddedCheckingInterest = Table.AddColumn(AddedInterchange, "CheckingInterestRevenue", each
-        [AvgCheckingBalance] * [PartnerInterestRate]
+        [AvgCheckingBalance] * ([PartnerInterestRate] / 12)
     ),
     AddedSavingsInterest = Table.AddColumn(AddedCheckingInterest, "SavingsInterestRevenue", each
-        [AvgSavingsBalance] * [PartnerInterestRate]
+        [AvgSavingsBalance] * ([PartnerInterestRate] / 12)
+    ),
+    AddedTotalInterest = Table.AddColumn(AddedSavingsInterest, "TotalInterestRevenue", each
+        [CheckingInterestRevenue] + [SavingsInterestRevenue]
+    ),
+    AddedTotalPartner = Table.AddColumn(AddedTotalInterest, "TotalPartnerRevenue", each
+        [InterchangeRevenue] + [TotalInterestRevenue]
     ),
 
     // Data types
-    ChangedTypes = Table.TransformColumnTypes(AddedSavingsInterest, {
+    ChangedTypes = Table.TransformColumnTypes(AddedTotalPartner, {
         {"Month", Int64.Type},
         {"CheckingBalance", type number},
         {"SavingsBalance", type number},
@@ -66,7 +57,9 @@ let
         {"AvgSavingsBalance", type number},
         {"InterchangeRevenue", type number},
         {"CheckingInterestRevenue", type number},
-        {"SavingsInterestRevenue", type number}
+        {"SavingsInterestRevenue", type number},
+        {"TotalInterestRevenue", type number},
+        {"TotalPartnerRevenue", type number}
     })
 in
     ChangedTypes
