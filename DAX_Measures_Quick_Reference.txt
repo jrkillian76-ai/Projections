@@ -1,0 +1,85 @@
+# DAX Measures Quick Reference
+# Copy and paste these directly into Power BI Desktop
+
+## 1. Dynamic Adjustment Measure
+Custom_Adjustment = 
+VAR CurrentMonth = SELECTEDVALUE(CalcsTable[Month], 1)
+VAR CurrentScenario = SELECTEDVALUE(CalcsTable[ScenarioName], "Base")
+VAR Adjustment = 
+    SWITCH(
+        CurrentMonth,
+        1, LOOKUPVALUE(Scenarios[Month1_Adjustment], Scenarios[ScenarioName], "Custom"),
+        6, LOOKUPVALUE(Scenarios[Month6_Adjustment], Scenarios[ScenarioName], "Custom"),
+        12, LOOKUPVALUE(Scenarios[Month12_Adjustment], Scenarios[ScenarioName], "Custom"),
+        24, LOOKUPVALUE(Scenarios[Month24_Adjustment], Scenarios[ScenarioName], "Custom"),
+        36, LOOKUPVALUE(Scenarios[Month36_Adjustment], Scenarios[ScenarioName], "Custom"),
+        1.0
+    )
+RETURN
+IF(CurrentScenario = "Custom", Adjustment, 1.0)
+
+## 2. Dynamic Custom Scenario Inflows
+Custom_Scenario_Inflows = 
+VAR BaseInflows = SUM(CalcsTable[Total_Inflows])
+VAR Adjustment = Custom_Adjustment
+VAR CurrentScenario = SELECTEDVALUE(CalcsTable[ScenarioName], "Base")
+RETURN
+IF(CurrentScenario = "Custom", BaseInflows * Adjustment, BaseInflows)
+
+## 3. Dynamic Custom Scenario Outflows
+Custom_Scenario_Outflows = 
+VAR BaseOutflows = SUM(CalcsTable[Total_Outflows])
+VAR Adjustment = Custom_Adjustment
+VAR CurrentScenario = SELECTEDVALUE(CalcsTable[ScenarioName], "Base")
+RETURN
+IF(CurrentScenario = "Custom", BaseOutflows * Adjustment, BaseOutflows)
+
+## 4. Dynamic Custom Scenario Net
+Custom_Scenario_Net = 
+Custom_Scenario_Inflows - Custom_Scenario_Outflows
+
+## 5. Dynamic Custom Scenario Savings Transfers
+Custom_Scenario_SavingsTransfers = 
+VAR BaseSavings = SUM(CalcsTable[SavingsTransfers])
+VAR Adjustment = Custom_Adjustment
+VAR CurrentScenario = SELECTEDVALUE(CalcsTable[ScenarioName], "Base")
+RETURN
+IF(CurrentScenario = "Custom", BaseSavings * Adjustment, BaseSavings)
+
+## 6. Dynamic Custom Scenario Monthly Checking
+Custom_Scenario_MonthlyChecking = 
+VAR BaseChecking = SUM(CalcsTable[Monthly_Checking])
+VAR Adjustment = Custom_Adjustment
+VAR CurrentScenario = SELECTEDVALUE(CalcsTable[ScenarioName], "Base")
+RETURN
+IF(CurrentScenario = "Custom", BaseChecking * Adjustment, BaseChecking)
+
+## 7. Dynamic Custom Scenario Monthly Savings
+Custom_Scenario_MonthlySavings = 
+VAR BaseMonthlySavings = SUM(CalcsTable[Monthly_Savings])
+VAR Adjustment = Custom_Adjustment
+VAR CurrentScenario = SELECTEDVALUE(CalcsTable[ScenarioName], "Base")
+RETURN
+IF(CurrentScenario = "Custom", BaseMonthlySavings * Adjustment, BaseMonthlySavings)
+
+## 8. Dynamic Custom Scenario Checking Usage
+Custom_Scenario_CheckingUsage = 
+VAR BaseCheckingUsage = SUM(CalcsTable[CheckingUsage])
+VAR Adjustment = Custom_Adjustment
+VAR CurrentScenario = SELECTEDVALUE(CalcsTable[ScenarioName], "Base")
+RETURN
+IF(CurrentScenario = "Custom", BaseCheckingUsage * Adjustment, BaseCheckingUsage)
+
+## 9. Dynamic Custom Scenario Savings Usage
+Custom_Scenario_SavingsUsage = 
+VAR BaseSavingsUsage = SUM(CalcsTable[SavingsUsage])
+VAR Adjustment = Custom_Adjustment
+VAR CurrentScenario = SELECTEDVALUE(CalcsTable[ScenarioName], "Base")
+RETURN
+IF(CurrentScenario = "Custom", BaseSavingsUsage * Adjustment, BaseSavingsUsage)
+
+## Notes:
+- Replace "CalcsTable" with your actual main fact table name if different
+- These measures automatically apply adjustments only when "Custom" scenario is selected
+- All other scenarios (Base, High_25, Low_25, etc.) work exactly as before
+- The adjustments cascade through all downstream calculations automatically

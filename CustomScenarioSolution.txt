@@ -1,0 +1,151 @@
+# Custom Scenario Solution for Power BI
+# This solution adds 5-period adjustment capabilities to your existing Scenarios table
+
+## Overview
+Add 5 new adjustment fields to your existing Scenarios table to enable dynamic scenario modeling with slicers for Month 1, 6, 12, 24, and 36.
+
+## Step 1: Update Your Scenarios Table in Power Query
+
+### Add These 5 New Columns to Your Existing Scenarios Query:
+
+```m
+// In your existing Scenarios query, add these columns:
+AddedMonth1Adjustment = Table.AddColumn(Source, "Month1_Adjustment", each 1.0),
+AddedMonth6Adjustment = Table.AddColumn(AddedMonth1Adjustment, "Month6_Adjustment", each 1.0),
+AddedMonth12Adjustment = Table.AddColumn(AddedMonth6Adjustment, "Month12_Adjustment", each 1.0),
+AddedMonth24Adjustment = Table.AddColumn(AddedMonth12Adjustment, "Month24_Adjustment", each 1.0),
+AddedMonth36Adjustment = Table.AddColumn(AddedMonth24Adjustment, "Month36_Adjustment", each 1.0)
+```
+
+### Your Updated Scenarios Table Should Look Like:
+- ScenarioName (Base, High_25, Low_25, High_50, Low_50, Custom)
+- ScenarioDisplay (Base, Base +25%, Base -25%, etc.)
+- Description (Base case scenario, +25% account growth, etc.)
+- DefaultMultiplier (1.0, 1.25, 0.75, 1.5, 0.5, 1.0)
+- Accounts, ActiveShare, Active_Accounts, CheckingShare, Checking_Accounts, SavingShare, Savings_Accounts
+- **NEW: Month1_Adjustment (1.0)**
+- **NEW: Month6_Adjustment (1.0)**
+- **NEW: Month12_Adjustment (1.0)**
+- **NEW: Month24_Adjustment (1.0)**
+- **NEW: Month36_Adjustment (1.0)**
+
+## Step 2: Create DAX Measures
+
+### Create These Measures in Your Main Fact Table (CalcsTable):
+
+```dax
+// 1. Dynamic Adjustment Measure
+Custom_Adjustment = 
+VAR CurrentMonth = SELECTEDVALUE(CalcsTable[Month], 1)
+VAR CurrentScenario = SELECTEDVALUE(CalcsTable[ScenarioName], "Base")
+VAR Adjustment = 
+    SWITCH(
+        CurrentMonth,
+        1, LOOKUPVALUE(Scenarios[Month1_Adjustment], Scenarios[ScenarioName], "Custom"),
+        6, LOOKUPVALUE(Scenarios[Month6_Adjustment], Scenarios[ScenarioName], "Custom"),
+        12, LOOKUPVALUE(Scenarios[Month12_Adjustment], Scenarios[ScenarioName], "Custom"),
+        24, LOOKUPVALUE(Scenarios[Month24_Adjustment], Scenarios[ScenarioName], "Custom"),
+        36, LOOKUPVALUE(Scenarios[Month36_Adjustment], Scenarios[ScenarioName], "Custom"),
+        1.0  // Default for other months
+    )
+RETURN
+IF(CurrentScenario = "Custom", Adjustment, 1.0)
+
+// 2. Dynamic Custom Scenario Inflows
+Custom_Scenario_Inflows = 
+VAR BaseInflows = SUM(CalcsTable[Total_Inflows])
+VAR Adjustment = Custom_Adjustment
+VAR CurrentScenario = SELECTEDVALUE(CalcsTable[ScenarioName], "Base")
+RETURN
+IF(CurrentScenario = "Custom", BaseInflows * Adjustment, BaseInflows)
+
+// 3. Dynamic Custom Scenario Outflows
+Custom_Scenario_Outflows = 
+VAR BaseOutflows = SUM(CalcsTable[Total_Outflows])
+VAR Adjustment = Custom_Adjustment
+VAR CurrentScenario = SELECTEDVALUE(CalcsTable[ScenarioName], "Base")
+RETURN
+IF(CurrentScenario = "Custom", BaseOutflows * Adjustment, BaseOutflows)
+
+// 4. Dynamic Custom Scenario Net
+Custom_Scenario_Net = 
+Custom_Scenario_Inflows - Custom_Scenario_Outflows
+
+// 5. Dynamic Custom Scenario Savings Transfers
+Custom_Scenario_SavingsTransfers = 
+VAR BaseSavings = SUM(CalcsTable[SavingsTransfers])
+VAR Adjustment = Custom_Adjustment
+VAR CurrentScenario = SELECTEDVALUE(CalcsTable[ScenarioName], "Base")
+RETURN
+IF(CurrentScenario = "Custom", BaseSavings * Adjustment, BaseSavings)
+```
+
+## Step 3: Create the Slicer Interface
+
+### 1. Scenario Slicer
+- Add a **Slicer** visual
+- Set it to use `Scenarios[ScenarioName]`
+- This will show: Base, High_25, Low_25, High_50, Low_50, Custom
+
+### 2. Adjustment Sliders (5 total)
+- Add **Slider** visuals for each adjustment period
+- Bind each slider to the corresponding field:
+  - Slider 1: `Scenarios[Month1_Adjustment]` (filtered to Custom scenario)
+  - Slider 2: `Scenarios[Month6_Adjustment]` (filtered to Custom scenario)
+  - Slider 3: `Scenarios[Month12_Adjustment]` (filtered to Custom scenario)
+  - Slider 4: `Scenarios[Month24_Adjustment]` (filtered to Custom scenario)
+  - Slider 5: `Scenarios[Month36_Adjustment]` (filtered to Custom scenario)
+
+### 3. Slider Configuration
+- Set range: 0.5 to 2.0 (50% to 200%)
+- Default value: 1.0 (100%)
+- Step size: 0.05 (5% increments)
+
+## Step 4: Update Your Visualizations
+
+### Replace Existing Measures:
+- **Inflows**: Use `Custom_Scenario_Inflows` instead of `SUM(Total_Inflows)`
+- **Outflows**: Use `Custom_Scenario_Outflows` instead of `SUM(Total_Outflows)`
+- **Net**: Use `Custom_Scenario_Net` instead of `SUM(Net_Remaining_For_Savings)`
+- **Savings**: Use `Custom_Scenario_SavingsTransfers` instead of `SUM(SavingsTransfers)`
+
+## How It Works
+
+1. **Base Calculations**: Your existing Power Query M code calculates all scenarios
+2. **Custom Adjustments**: The 5 sliders update the adjustment values in the Scenarios table
+3. **Dynamic Measures**: DAX measures read the adjustment values and apply them in real-time
+4. **Visual Updates**: All charts automatically update as users adjust the sliders
+
+## Example Usage
+
+### Conservative Growth Scenario:
+- Month 1: 1.0 (100%)
+- Month 6: 0.9 (90%)
+- Month 12: 0.8 (80%)
+- Month 24: 0.7 (70%)
+- Month 36: 0.6 (60%)
+
+### Aggressive Growth Scenario:
+- Month 1: 1.0 (100%)
+- Month 6: 1.2 (120%)
+- Month 12: 1.5 (150%)
+- Month 24: 2.0 (200%)
+- Month 36: 2.5 (250%)
+
+## Benefits
+
+✅ **No M Code Changes**: Your existing Power Query logic stays intact
+✅ **Preserves Data Model**: All existing table relationships continue to work
+✅ **Real-Time Updates**: Changes reflect immediately as users adjust sliders
+✅ **Scalable**: Easy to add more adjustment periods or metrics
+✅ **Performance**: DAX measures are optimized for interactive scenarios
+
+## Next Steps
+
+1. Update your Scenarios table with the 5 new adjustment columns
+2. Create the DAX measures in your main fact table
+3. Add the slicer and slider visuals to your report
+4. Test with different adjustment combinations
+5. Create bookmarks for common scenario configurations
+
+This solution integrates seamlessly with your existing architecture and gives you the 5-period slicer system you envisioned!
