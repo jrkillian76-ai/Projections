@@ -1,0 +1,22 @@
+This is a screenshot of Microsoft Power BI's Model view interface, titled "Platform Projections Model V0.3 - Last saved: Yesterday at 11:40 AM." It depicts a relational data model schema with tables arranged in a semi-hierarchical layout, connected by relationship lines (indicating joins, likely one-to-many based on cardinalities). The background is light gray, with tables as white cards containing column lists. Some columns have icons like sigma (∑) for sums/aggregates, asterisks (*) for measures or keys, and arrows for collapses.
+Key Tables and Structure (Expanded from Initial Description)
+Using a table for clarity on comparisons and enumerations:
+Category	Table Name	Key Columns/Measures	Notes/Connections
+Dimensions	DateTable	MonthName, MonthNumber, Year, YearName	Connects to multiple fact tables on time fields like "Month". Temporal hierarchy for projections.
+	AccountsTable	Accounts, ActiveAccounts, ActiveShare, CheckingAccounts, CheckingShare, CheckingUsage	Account metrics; links to calcs and balances on shared keys like "ActiveAccounts".
+	Scenarios	DefaultMultiplier, ScenarioDisplay, ScenarioName	For what-if analysis; connects to views on "ScenarioName".
+Facts/Calcs	CalcsTable	Accounts, ActiveShare, CheckingAccounts, CheckingShare, CheckingUsage, CheckingUsageRate, DefaultMultiplier, Month	Aggregations; central hub linking dimensions.
+	InflowsTable	ACHInAmount, ACHInPerActive, ACHInQuantity, ACHInRate, ActiveAccounts, DefaultMultiplier, Month, RTPInAmount, RTPInPerActive	Incoming payments (ACH/RTP); tied to accounts and time.
+	OutflowsTable	ACHOutAmount, ACHOutPerActive, ACHOutQuantity, ACHOutRate, ACHOutShare, ActiveAccounts, DebitCardTransactionAmount, DebitCardTransactionRate, DebitCardTransactionShare	Outgoing flows; similar links.
+	BalancesTable	Accounts, ActiveShare, CheckingAccounts, CheckingBalance, CheckingShare, CheckingUsage, CheckingUsageRate, DefaultMultiplier	Balance snapshots.
+	AverageBalances	AvgCheckingBalance, AvgSavingsBalance, CheckingBalance, Month, SavingsBalance, ScenarioDisplay, ScenarioName	Averaged over time/scenarios.
+Views	PartnerFileView	AvgCheckingBalance, AvgSavingsBalance, CheckingBalance, CheckingInterestRevenue, DebitCardTransactionAmount, InterchangeRevenue, Month, PartnerInterchangeRate, PartnerInterestRate, SavingsBalance, SavingsInterestRevenue, ScenarioDisplay, ScenarioName, TotalInterestRevenue, TotalPartnerRevenue	Partner revenue focus; aggregates from balances/flows.
+	PlatformView	Accounts, ActiveAccounts, ActiveShare, AvgCheckingBalance, AvgSavingsBalance, CheckingAccounts, CheckingBalance, CheckingShare, CheckingUsage, CheckingUsageRate, DebitCardTransactionAmount, DefaultMultiplier, InterchangeRevenue, InterchangePerFeePerActive, MembershipRevenue, MembershipFeePerActive, Month, Monthly_Checking, Net_Remaining_For_Savings, OtherFeeRevenue, OtherFeesPerActive, PlatformContribution, PlatformInterchangeRate, PlatformSGA	Platform-level metrics; includes costs like SGA.
+Parameters/Inputs	InterpolatedInputs	InputType, Month, Value	Time-interpolated values.
+	GlobalNumericParameters	InputType, Value	Numeric globals.
+	GlobalTextParameters	InputType, TextValue	Text globals.
+	Parameters	InputType, Month, Value	General params.
+	CustomMultiplier	CustomMultiplierValue	Adjustments.
+	MeasuresP	Category, Checking EOY Balance, Partner Interchange Rate, Partner Interest Rate, Savings EOY Balance, TotalAvgBalance	KPIs like end-of-year balances.
+The model appears designed for financial projections in a BaaS (Banking-as-a-Service) context, supporting scenarios, revenue calculations (e.g., interest, fees), and balances over time. Relationships flow from dimensions to facts to views, forming a star-like schema. If you meant a different path or need edits, let me know!
+
