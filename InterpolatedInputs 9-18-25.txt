@@ -1,0 +1,117 @@
+// InterpolatedInputs - Enhanced with custom scenario support
+let
+    // Source: Reference your existing Parameters query
+    Source = Parameters,
+    #"Changed Type" = Table.TransformColumnTypes(Source,{{"InputType", type text}, {"Month", Int64.Type}, {"Value", type number}}),
+    
+    // Create complete month range (1 to 60)
+    MonthRange = List.Numbers(1, 60, 1),
+    MonthTable = Table.FromList(MonthRange, Splitter.SplitByNothing(), null, null, ExtraValues.Error),
+    #"Renamed Column" = Table.RenameColumns(MonthTable,{{"Column1", "Month"}}),
+    #"Changed Month Type" = Table.TransformColumnTypes(#"Renamed Column",{{"Month", Int64.Type}}),
+    
+    // Get unique input types
+    InputTypes = Table.Distinct(#"Changed Type", {"InputType"}),
+    
+    // Cross join: Every month × Every input type
+    CrossJoin = Table.AddColumn(#"Changed Month Type", "InputType", each InputTypes),
+    #"Expanded InputTypes" = Table.ExpandTableColumn(CrossJoin, "InputType", {"InputType"}, {"InputType"}),
+    
+    // Add interpolated values with month-by-month growth for months 37+
+    #"Added Interpolation" = Table.AddColumn(#"Expanded InputTypes", "Value", each 
+        let
+            CurrentInputType = [InputType],
+            CurrentMonth = [Month],
+            
+            // Get key month values for this input type
+            M1Value = try Table.SelectRows(#"Changed Type", each [InputType] = CurrentInputType and [Month] = 1){0}[Value] otherwise 0,
+            M6Value = try Table.SelectRows(#"Changed Type", each [InputType] = CurrentInputType and [Month] = 6){0}[Value] otherwise M1Value,
+            M12Value = try Table.SelectRows(#"Changed Type", each [InputType] = CurrentInputType and [Month] = 12){0}[Value] otherwise M6Value,
+            M24Value = try Table.SelectRows(#"Changed Type", each [InputType] = CurrentInputType and [Month] = 24){0}[Value] otherwise M12Value,
+            M36Value = try Table.SelectRows(#"Changed Type", each [InputType] = CurrentInputType and [Month] = 36){0}[Value] otherwise M24Value,
+            
+            // Growth rate for beyond month 36
+            GrowthRate = try Table.SelectRows(#"Changed Type", each [InputType] = "GrowthRateM37Plus" and [Month] = 37){0}[Value] otherwise 0.01,
+            
+            // Interpolation logic
+            InterpolatedValue = 
+                if CurrentMonth = 1 then M1Value
+                else if CurrentMonth <= 6 then M1Value + (M6Value - M1Value) * (CurrentMonth - 1) / 5
+                else if CurrentMonth <= 12 then M6Value + (M12Value - M6Value) * (CurrentMonth - 6) / 6
+                else if CurrentMonth <= 24 then M12Value + (M24Value - M12Value) * (CurrentMonth - 12) / 12
+                else if CurrentMonth <= 36 then M24Value + (M36Value - M24Value) * (CurrentMonth - 24) / 12
+                else if CurrentInputType = "Accounts" then
+                    // Month-by-month calculation for months 37+
+                    let
+                        MonthsSince36 = CurrentMonth - 36,
+                        Result = List.Accumulate(
+                            List.Numbers(1, MonthsSince36, 1),
+                            M36Value,
+                            (state, current) => Number.RoundDown(state * (1 + GrowthRate), 0)
+                        )
+                    in
+                        Result
+                else M36Value
+        in
+            InterpolatedValue
+    ),    
+
+    // Clean up data types
+    #"Changed Value Type" = Table.TransformColumnTypes(#"Added Interpolation",{{"Value", type number}}),
+    
+    // Reorder columns
+    #"Reordered Columns" = Table.ReorderColumns(#"Changed Value Type",{"InputType", "Month", "Value"}),
+    
+    // Now add custom scenario rows
+    #"Added Custom Scenario Rows" = Table.AddColumn(#"Reordered Columns", "CustomValue", each
+        let
+            CurrentInputType = [InputType],
+            CurrentMonth = [Month],
+            BaseValue = [Value],
+            
+            // Get the selected adjustment set (default to "1.0" if none selected)
+            SelectedAdjustmentSet = try Table.SelectRows(MonthAdjustments, each true){0}[AdjustmentSetID] otherwise "1.0",
+            
+            // Get month adjustments for the selected set
+            Month1Adj = try Table.SelectRows(MonthAdjustments, each [AdjustmentSetID] = SelectedAdjustmentSet){0}[Month1_Adjustment] otherwise 1.0,
+            Month6Adj = try Table.SelectRows(MonthAdjustments, each [AdjustmentSetID] = SelectedAdjustmentSet){0}[Month6_Adjustment] otherwise 1.0,
+            Month12Adj = try Table.SelectRows(MonthAdjustments, each [AdjustmentSetID] = SelectedAdjustmentSet){0}[Month12_Adjustment] otherwise 1.0,
+            Month24Adj = try Table.SelectRows(MonthAdjustments, each [AdjustmentSetID] = SelectedAdjustmentSet){0}[Month24_Adjustment] otherwise 1.0,
+            Month36Adj = try Table.SelectRows(MonthAdjustments, each [AdjustmentSetID] = SelectedAdjustmentSet){0}[Month36_Adjustment] otherwise 1.0,
+            
+            // Apply custom adjustments to key months
+            CustomValue = 
+                if CurrentMonth = 1 then BaseValue * Month1Adj
+                else if CurrentMonth = 6 then BaseValue * Month6Adj
+                else if CurrentMonth = 12 then BaseValue * Month12Adj
+                else if CurrentMonth = 24 then BaseValue * Month24Adj
+                else if CurrentMonth = 36 then BaseValue * Month36Adj
+                else
+                    // Interpolate between key months for custom scenario
+                    let
+                        // Find the key months that bracket the current month
+                        KeyMonths = {1, 6, 12, 24, 36},
+                        KeyAdjustments = {Month1Adj, Month6Adj, Month12Adj, Month24Adj, Month36Adj},
+                        
+                        // Find the lower and upper key months
+                        LowerMonth = List.Max(List.Select(KeyMonths, each _ <= CurrentMonth)),
+                        UpperMonth = List.Min(List.Select(KeyMonths, each _ > CurrentMonth)),
+                        
+                        // Get corresponding adjustments
+                        LowerAdj = KeyAdjustments{List.PositionOf(KeyMonths, LowerMonth)},
+                        UpperAdj = if UpperMonth = null then LowerAdj else KeyAdjustments{List.PositionOf(KeyMonths, UpperMonth)},
+                        
+                        // Interpolate the adjustment factor
+                        AdjustmentFactor = 
+                            if UpperMonth = null then LowerAdj
+                            else LowerAdj + (UpperAdj - LowerAdj) * (CurrentMonth - LowerMonth) / (UpperMonth - LowerMonth)
+                    in
+                        BaseValue * AdjustmentFactor
+        in
+            CustomValue
+    ),
+    
+    // Clean up and set data types
+    #"Changed Custom Value Type" = Table.TransformColumnTypes(#"Added Custom Scenario Rows",{{"CustomValue", type number}})
+in
+    #"Changed Custom Value Type"

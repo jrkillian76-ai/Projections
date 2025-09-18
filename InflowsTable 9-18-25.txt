@@ -1,0 +1,129 @@
+// InflowsTable - Enhanced with custom scenario support
+let
+    // Get base structure from AccountsTable (we need Active_Accounts for calculations)
+    BaseStructure = Table.SelectColumns(AccountsTable, {"Month", "ScenarioName", "ScenarioDisplay", "DefaultMultiplier", "Active_Accounts"}),
+    
+    // JOIN for ACH In Per Active
+    #"Joined ACHinPerActive" = Table.NestedJoin(BaseStructure, {"Month"}, 
+        Table.SelectRows(InterpolatedInputs, each [InputType] = "ACHinPerActive"), {"Month"}, 
+        "ACHinPerActiveData", JoinKind.LeftOuter),
+    #"Expanded ACHinPerActive" = Table.ExpandTableColumn(#"Joined ACHinPerActive", "ACHinPerActiveData", {"Value", "CustomValue"}, {"ACHinPerActive", "CustomACHinPerActive"}),
+    
+    // JOIN for ACH In Rate
+    #"Joined ACHinRate" = 
+        Table.NestedJoin(
+            #"Expanded ACHinPerActive",
+            {"Month"}, 
+            Table.SelectRows(InterpolatedInputs, each [InputType] = "ACHinRate"),
+            {"Month"},
+            "ACHinRateData", 
+            JoinKind.LeftOuter
+        ),
+    #"Expanded ACHinRate" = Table.ExpandTableColumn(#"Joined ACHinRate", "ACHinRateData", {"Value", "CustomValue"}, {"ACHinRate", "CustomACHinRate"}),
+    
+    // Calculate ACH Inflows
+    #"Added ACHinQuantity" = Table.AddColumn(#"Expanded ACHinRate", "ACHinQuantity", each
+        Number.Round(
+            [Active_Accounts] * (if [ScenarioName] = "Custom" then (if [CustomACHinPerActive] = null then 0 else [CustomACHinPerActive]) else (if [ACHinPerActive] = null then 0 else [ACHinPerActive])),
+            0, RoundingMode.AwayFromZero
+        ),
+        type number
+    ),
+
+    #"Added ACHinRateRounded" = Table.AddColumn(#"Added ACHinQuantity", "ACHinRateRounded", each
+        Number.Round(
+            (if [ScenarioName] = "Custom" then (if [CustomACHinRate] = null then 0 else [CustomACHinRate]) else (if [ACHinRate] = null then 0 else [ACHinRate])),
+            2, RoundingMode.AwayFromZero
+        ),
+        type number
+    ),
+
+    #"Added ACHinAmount" = Table.AddColumn(#"Added ACHinRateRounded", "ACHinAmount", each
+        [ACHinQuantity] * [ACHinRateRounded],
+        type number
+    ),
+    
+    // JOIN for RTP In Per Active
+    #"Joined RTPinPerActive" = Table.NestedJoin(#"Added ACHinAmount", {"Month"}, 
+        Table.SelectRows(InterpolatedInputs, each [InputType] = "RTPinPerActive"), {"Month"}, 
+        "RTPinPerActiveData", JoinKind.LeftOuter),
+    #"Expanded RTPinPerActive" = Table.ExpandTableColumn(#"Joined RTPinPerActive", "RTPinPerActiveData", {"Value", "CustomValue"}, {"RTPinPerActive", "CustomRTPinPerActive"}),
+
+    // JOIN for RTP In Rate
+    #"Joined RTPinRate" = 
+        Table.NestedJoin(
+            #"Expanded RTPinPerActive", 
+            {"Month"},
+            Table.SelectRows(InterpolatedInputs, each [InputType] = "RTPinRate"),
+            {"Month"}, 
+            "RTPinRateData",
+            JoinKind.LeftOuter
+        ),
+    #"Expanded RTPinRate" = Table.ExpandTableColumn(#"Joined RTPinRate", "RTPinRateData", {"Value", "CustomValue"}, {"RTPinRate", "CustomRTPinRate"}),
+
+    // Calculate RTP Inflows
+    #"Added RTPinQuantity" = Table.AddColumn(#"Expanded RTPinRate", "RTPinQuantity", each
+        Number.Round(
+            [Active_Accounts] * (if [ScenarioName] = "Custom" then (if [CustomRTPinPerActive] = null then 0 else [CustomRTPinPerActive]) else (if [RTPinPerActive] = null then 0 else [RTPinPerActive])),
+            0, RoundingMode.AwayFromZero
+        ),
+        type number
+    ),
+
+    #"Added RTPinRateRounded" = Table.AddColumn(#"Added RTPinQuantity", "RTPinRateRounded", each
+        Number.Round(
+            (if [ScenarioName] = "Custom" then (if [CustomRTPinRate] = null then 0 else [CustomRTPinRate]) else (if [RTPinRate] = null then 0 else [RTPinRate])),
+            2, RoundingMode.AwayFromZero
+        ),
+        type number
+    ),
+ 
+    #"Added RTPinAmount" = Table.AddColumn(#"Added RTPinRateRounded", "RTPinAmount", each
+        [RTPinQuantity] * [RTPinRateRounded],
+        type number
+    ),
+    
+    // JOIN for Wire In Per Active
+    #"Joined WireInPerActive" = Table.NestedJoin(#"Added RTPinAmount", {"Month"}, 
+        Table.SelectRows(InterpolatedInputs, each [InputType] = "WireInPerActive"), {"Month"}, 
+        "WireInPerActiveData", JoinKind.LeftOuter),
+    #"Expanded WireInPerActive" = Table.ExpandTableColumn(#"Joined WireInPerActive", "WireInPerActiveData", {"Value", "CustomValue"}, {"WireInPerActive", "CustomWireInPerActive"}),
+    
+    // JOIN for Wire In Rate
+    #"Joined WireInRate" = Table.NestedJoin(#"Expanded WireInPerActive", {"Month"}, 
+        Table.SelectRows(InterpolatedInputs, each [InputType] = "WireInRate"), {"Month"}, 
+        "WireInRateData", JoinKind.LeftOuter),
+    #"Expanded WireInRate" = Table.ExpandTableColumn(#"Joined WireInRate", "WireInRateData", {"Value", "CustomValue"}, {"WireInRate", "CustomWireInRate"}),
+    
+    // Calculate Wire Inflows
+    #"Added WireInQuantity" = Table.AddColumn(#"Expanded WireInRate", "WireInQuantity", each
+        Number.Round(
+            [Active_Accounts] * (if [ScenarioName] = "Custom" then (if [CustomWireInPerActive] = null then 0 else [CustomWireInPerActive]) else (if [WireInPerActive] = null then 0 else [WireInPerActive])),
+            0, RoundingMode.AwayFromZero
+        ),
+        type number
+    ),
+    #"Added WireInAmount" = Table.AddColumn(#"Added WireInQuantity", "WireInAmount", each
+        [WireInQuantity] * (if [ScenarioName] = "Custom" then (if [CustomWireInRate] = null then 0 else [CustomWireInRate]) else (if [WireInRate] = null then 0 else [WireInRate])),
+        type number
+    ),
+    
+    // Calculate Total Inflows
+    #"Added Total Inflows" = Table.AddColumn(#"Added WireInAmount", "Total_Inflows", each
+        [ACHinAmount] + [RTPinAmount] + [WireInAmount]
+    ),
+    
+    // Clean up and set data types
+    #"Removed Intermediate Columns" = Table.RemoveColumns(#"Added Total Inflows", {"ACHinPerActive", "CustomACHinPerActive", "ACHinRate", "CustomACHinRate", "RTPinPerActive", "CustomRTPinPerActive", "RTPinRate", "CustomRTPinRate", "WireInPerActive", "CustomWireInPerActive", "WireInRate", "CustomWireInRate"}),
+    #"Changed Types" = Table.TransformColumnTypes(#"Removed Intermediate Columns",{
+        {"Month", Int64.Type},
+        {"ACHinQuantity", type number},
+        {"ACHinAmount", type number},
+        {"RTPinQuantity", type number},
+        {"RTPinAmount", type number},
+        {"WireInQuantity", type number},
+        {"WireInAmount", type number},
+        {"Total_Inflows", type number}
+    })
+in
+    #"Changed Types"

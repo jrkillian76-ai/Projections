@@ -1,0 +1,130 @@
+let
+  // Base: Active accounts + total inflows (by month + scenario)
+  BaseStructure = Table.SelectColumns(AccountsTable, {"Month","ScenarioName","ScenarioDisplay","DefaultMultiplier","Active_Accounts"}),
+  #"Joined Total Inflows" = Table.NestedJoin(
+      BaseStructure, {"Month","ScenarioName"},
+      Table.SelectColumns(InflowsTable, {"Month","ScenarioName","Total_Inflows"}), {"Month","ScenarioName"},
+      "InflowsData", JoinKind.LeftOuter
+  ),
+  #"Expanded Total Inflows" = Table.ExpandTableColumn(#"Joined Total Inflows", "InflowsData", {"Total_Inflows"}, {"Total_Inflows"}),
+  #"TotalInflows as Decimal" =
+    Table.TransformColumnTypes(#"Expanded Total Inflows", {{"Total_Inflows", Decimal.Type}}),
+
+  ACHoutPerActiveLkp =
+    Table.TransformColumns(
+      Table.SelectColumns(
+        Table.SelectRows(InterpolatedInputs, each [InputType] = "ACHoutPerActive"),
+        {"Month","Value"}
+      ),
+      {{"Value", each Decimal.From(Number.Round(_, 9)), Decimal.Type}}
+    ),
+
+  ACHoutShareLkp =
+    Table.TransformColumns(
+      Table.SelectColumns(
+        Table.SelectRows(InterpolatedInputs, each [InputType] = "ACHoutShare"),
+        {"Month","Value"}
+      ),
+      {{"Value", each Decimal.From(Number.Round(_, 9)), Decimal.Type}}
+    ),
+
+  RTPoutPerActiveLkp = Table.SelectColumns(Table.SelectRows(InterpolatedInputs, each [InputType] = "RTPoutPerActive"), {"Month","Value"}),
+    RTPoutShareLkp = 
+    Table.TransformColumns(
+        Table.SelectColumns(
+        Table.SelectRows(InterpolatedInputs, each [InputType] = "RTPoutShare"),
+        {"Month","Value"}
+        ),
+        {{"Value", each Number.Round(_, 4), type number}}
+  ),
+
+  WireOutPerActiveLkp = Table.SelectColumns(Table.SelectRows(InterpolatedInputs, each [InputType] = "WireOutPerActive"), {"Month","Value"}),
+    WireOutShareLkp = 
+    Table.TransformColumns(
+        Table.SelectColumns(
+        Table.SelectRows(InterpolatedInputs, each [InputType] = "WireOutShare"),
+        {"Month","Value"}
+        ),
+        {{"Value", each Number.Round(_, 4), type number}}
+    ),
+
+  DebitPerActiveLkp = Table.SelectColumns(Table.SelectRows(InterpolatedInputs, each [InputType] = "DebitCardTransactionsPerActive"), {"Month","Value"}),
+    DebitShareLkp = 
+    Table.TransformColumns(
+        Table.SelectColumns(
+        Table.SelectRows(InterpolatedInputs, each [InputType] = "DebitCardTransactionShare"),
+        {"Month","Value"}
+        ),
+        {{"Value", each Number.Round(_, 4), type number}}
+    ),
+
+  // ACH Outflows
+  #"Joined ACHoutPerActive" = Table.NestedJoin(#"TotalInflows as Decimal", {"Month"}, ACHoutPerActiveLkp, {"Month"}, "ACHoutPerActiveData", JoinKind.LeftOuter),
+  #"Expanded ACHoutPerActive" = Table.ExpandTableColumn(#"Joined ACHoutPerActive", "ACHoutPerActiveData", {"Value"}, {"ACHoutPerActive"}),
+
+  #"Joined ACHoutShare" = Table.NestedJoin(#"Expanded ACHoutPerActive", {"Month"}, ACHoutShareLkp, {"Month"}, "ACHoutShareData", JoinKind.LeftOuter),
+  #"Expanded ACHoutShare" = Table.ExpandTableColumn(#"Joined ACHoutShare", "ACHoutShareData", {"Value"}, {"ACHoutShare"}),
+
+  #"Added ACHoutQuantity" = Table.AddColumn(#"Expanded ACHoutShare", "ACHoutQuantity", each 
+    Number.RoundDown(([Active_Accounts] * [ACHoutPerActive]),0), Int64.Type),
+  #"Added ACHoutAmount"   = Table.AddColumn(#"Added ACHoutQuantity", "ACHoutAmount",   each 
+    Number.Round(Decimal.From([Total_Inflows]) * Decimal.From([ACHoutShare]),0, RoundingMode.AwayFromZero), Decimal.Type),
+  #"Added ACHoutRate"     = Table.AddColumn(#"Added ACHoutAmount",   "ACHoutRate",     each if [ACHoutQuantity] > 0 then [ACHoutAmount] / [ACHoutQuantity] else 0),
+
+  // RTP Outflows
+  #"Joined RTPoutPerActive" = Table.NestedJoin(#"Added ACHoutRate", {"Month"}, RTPoutPerActiveLkp, {"Month"}, "RTPoutPerActiveData", JoinKind.LeftOuter),
+  #"Expanded RTPoutPerActive" = Table.ExpandTableColumn(#"Joined RTPoutPerActive", "RTPoutPerActiveData", {"Value"}, {"RTPoutPerActive"}),
+
+  #"Joined RTPoutShare" = Table.NestedJoin(#"Expanded RTPoutPerActive", {"Month"}, RTPoutShareLkp, {"Month"}, "RTPoutShareData", JoinKind.LeftOuter),
+  #"Expanded RTPoutShare" = Table.ExpandTableColumn(#"Joined RTPoutShare", "RTPoutShareData", {"Value"}, {"RTPoutShare"}),
+
+  #"Added RTPoutQuantity" = Table.AddColumn(#"Expanded RTPoutShare", "RTPoutQuantity", each 
+    Number.RoundDown(([Active_Accounts] * [RTPoutPerActive]),0), Int64.Type),
+  #"Added RTPoutAmount"   = Table.AddColumn(#"Added RTPoutQuantity", "RTPoutAmount",   each [Total_Inflows] * [RTPoutShare]),
+  #"Added RTPoutRate"     = Table.AddColumn(#"Added RTPoutAmount",   "RTPoutRate",     each if [RTPoutQuantity] > 0 then [RTPoutAmount] / [RTPoutQuantity] else 0),
+
+  // Wire Outflows
+  #"Joined WireOutPerActive" = Table.NestedJoin(#"Added RTPoutRate", {"Month"}, WireOutPerActiveLkp, {"Month"}, "WireOutPerActiveData", JoinKind.LeftOuter),
+  #"Expanded WireOutPerActive" = Table.ExpandTableColumn(#"Joined WireOutPerActive", "WireOutPerActiveData", {"Value"}, {"WireOutPerActive"}),
+
+  #"Joined WireOutShare" = Table.NestedJoin(#"Expanded WireOutPerActive", {"Month"}, WireOutShareLkp, {"Month"}, "WireOutShareData", JoinKind.LeftOuter),
+  #"Expanded WireOutShare" = Table.ExpandTableColumn(#"Joined WireOutShare", "WireOutShareData", {"Value"}, {"WireOutShare"}),
+
+  #"Added WireOutQuantity" = Table.AddColumn(#"Expanded WireOutShare", "WireOutQuantity", each 
+    Number.RoundDown(([Active_Accounts] * [WireOutPerActive]),0), Int64.Type),
+  #"Added WireOutAmount"   = Table.AddColumn(#"Added WireOutQuantity", "WireOutAmount",   each [Total_Inflows] * [WireOutShare]),
+  #"Added WireOutRate"     = Table.AddColumn(#"Added WireOutAmount",   "WireOutRate",     each if [WireOutQuantity] > 0 then [WireOutAmount] / [WireOutQuantity] else 0),
+
+  // Debit Card Outflows
+  #"Joined DebitPerActive" = Table.NestedJoin(#"Added WireOutRate", {"Month"}, DebitPerActiveLkp, {"Month"}, "DebitPerActiveData", JoinKind.LeftOuter),
+  #"Expanded DebitPerActive" = Table.ExpandTableColumn(#"Joined DebitPerActive", "DebitPerActiveData", {"Value"}, {"DebitCardTransactionsPerActive"}),
+
+  #"Joined DebitShare" = Table.NestedJoin(#"Expanded DebitPerActive", {"Month"}, DebitShareLkp, {"Month"}, "DebitShareData", JoinKind.LeftOuter),
+  #"Expanded DebitShare" = Table.ExpandTableColumn(#"Joined DebitShare", "DebitShareData", {"Value"}, {"DebitCardTransactionShare"}),
+
+  #"Added DebitQuantity" = Table.AddColumn(#"Expanded DebitShare", "DebitCardTransactionsQuantity", each 
+    Number.RoundDown(([Active_Accounts] * [DebitCardTransactionsPerActive]),0), Int64.Type),
+  #"Added DebitAmount"   = Table.AddColumn(#"Added DebitQuantity", "DebitCardTransactionAmount", each
+      ([Total_Inflows] - [ACHoutAmount] - [RTPoutAmount] - [WireOutAmount]) * [DebitCardTransactionShare]
+  ),
+  #"Added DebitRate"     = Table.AddColumn(#"Added DebitAmount", "DebitCardTransactionRate", each
+      if [DebitCardTransactionsQuantity] > 0 then [DebitCardTransactionAmount] / [DebitCardTransactionsQuantity] else 0
+  ),
+
+  // Total Outflows
+  #"Added Total Outflows" = Table.AddColumn(#"Added DebitRate", "Total_Outflows", each
+      [ACHoutAmount] + [RTPoutAmount] + [WireOutAmount] + [DebitCardTransactionAmount]
+  ),
+
+  // Types
+  #"Changed Types" = Table.TransformColumnTypes(#"Added Total Outflows", {
+      {"Month", Int64.Type},
+      {"ACHoutQuantity", type number}, {"ACHoutAmount", type number},
+      {"RTPoutQuantity", type number}, {"RTPoutAmount", type number},
+      {"WireOutQuantity", type number}, {"WireOutAmount", type number},
+      {"DebitCardTransactionsQuantity", type number}, {"DebitCardTransactionAmount", type number},
+      {"Total_Outflows", type number}
+  }),
+    #"Filtered Rows" = Table.SelectRows(#"Changed Types", each ([ScenarioName] = "Base"))
+in
+  #"Filtered Rows"
